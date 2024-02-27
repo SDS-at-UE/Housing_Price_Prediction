@@ -1,0 +1,49 @@
+---
+title: "EDA kaggle"
+author: "Gideon Wolf"
+date: "2/27/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r, include = FALSE, message=FALSE}
+house <- read_csv("train.csv")
+house <- house %>% mutate_if(is.character, as.factor)
+house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSold, YrBuilt, YrRennovated, MoSold, or any of the OverallQual or OverallCond? How do we configure the year? Should we change the NAs in the Alley column to 0 or will it work with NAs?
+```
+
+
+# Goal: Explore the Kaggle housing dataset
+
+
+## Questions: 
+
+**How large is the data?**
+
+**Is there a substantial amount of missing data?**
+
+**Are there variables that vary highly with one another(covariates)?**
+
+-Does month sold affect the price sold? 
+
+-Is there a connection between Rennovation date and overall quality?
+
+-Does zone and house size have any correlation?
+
+**What distribution describes each variable?** 
+
+**Can we make our response categorical?**
+
+-Are there natural delineations in sales price(i.e. low, medium, high)?
+
+
+
+
+```{r}
+
+```
+
