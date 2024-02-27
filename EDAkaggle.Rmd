@@ -13,7 +13,10 @@ library(tidyverse)
 ```{r, include = FALSE, message=FALSE}
 house <- read_csv("train.csv")
 house <- house %>% mutate_if(is.character, as.factor)
-house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSold, YrBuilt, YrRennovated, MoSold, or any of the OverallQual or OverallCond? How do we configure the year? Should we change the NAs in the Alley column to 0 or will it work with NAs?
+house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSold, YrBuilt, YrRennovated, 
+# MoSold, or any of the OverallQual or OverallCond? How do
+#we configure the year? Should we change the NAs in the
+#Alley column to 0 or will it work with NAs?
 ```
 
 
@@ -22,9 +25,13 @@ house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSo
 
 ## Questions: 
 
-**How large is the data?**
+**How large is the data? What is the quality of the data?**
+
+-What type of variables are we working with?
 
 **Is there a substantial amount of missing data?**
+
+-If so, what kind of imputation would be most useful?
 
 **Are there variables that vary highly with one another(covariates)?**
 
@@ -40,6 +47,11 @@ house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSo
 
 -Are there natural delineations in sales price(i.e. low, medium, high)?
 
+-Can we predict house size based on sales price? 
+
+***What kinds of models would be best fit for our data?***
+
+**Once finished, how similar is the Ames dataset?**
 
 
 
