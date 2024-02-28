@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(mice)
 ```
 
 ```{r, include = FALSE, message=FALSE}
@@ -54,8 +55,16 @@ house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we inc
 **Once finished, how similar is the Ames dataset?**
 
 
+#Size and Quality of Data
 
+Summary and Variable Types:
 ```{r}
+summary(house)
+```
 
+
+Missing Data:
+```{r}
+md.pattern(house)
 ```
 
