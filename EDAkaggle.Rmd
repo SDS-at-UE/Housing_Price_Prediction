@@ -20,6 +20,35 @@ house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we inc
 #Alley column to 0 or will it work with NAs?
 ```
 
+```{r}
+NAtoNone <- c("")
+housetmp <- house
+housetmp$Alley <- as.character(housetmp$Alley)
+housetmp[7][is.na(housetmp[7])] <- "None"
+housetmp$Alley <- as.factor(housetmp$Alley)
+house <- housetmp
+```
+
+We need to do ^ with all of the following variables (each one has NA as an 
+indicator that the house does not have that feature, so we have to change the NA
+to something else to have it be considered in the model): 
+Fence
+PoolQC
+FireplaceQu
+MiscFeature
+GarageCond
+GarageQual
+GarageFinish
+GarageYrBlt
+GarageType
+BsmtFinType2 
+BsmtFinType1 
+BsmtExposure 
+BsmtCond 
+BsmtQual 
+How do you 
+
+
 
 # Goal: Explore the Kaggle housing dataset
 
