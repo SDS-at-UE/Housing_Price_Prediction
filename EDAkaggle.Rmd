@@ -9,45 +9,35 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(mice)
+
+house <- read_csv("train.csv")
 ```
 
+
+```{r, message = FALSE}
+NAtoNone <- c(7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
+for (i in NAtoNone) {
+  housetmp <- house
+  #housetmp[i] <- as.character(housetmp[i])
+  housetmp[i][is.na(housetmp[i])] <- "None"
+  #housetmp$Alley <- as.factor(housetmp$Alley)
+  house <- housetmp
+}
+```
+
+We need to do this with these variables because each one has NA as an 
+indicator that the house does not have that feature (as noted in the 
+data_description.txt file), so we have to change the NA to something else to 
+have it be considered as a level of each factor in the model.
+
 ```{r, include = FALSE, message=FALSE}
-house <- read_csv("train.csv")
 house <- house %>% mutate_if(is.character, as.factor)
-house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) #should we include YrSold, YrBuilt, YrRennovated, 
+house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
+#should we include YrSold, YrBuilt, YrRennovated, 
 # MoSold, or any of the OverallQual or OverallCond? How do
 #we configure the year? Should we change the NAs in the
 #Alley column to 0 or will it work with NAs?
 ```
-
-```{r}
-NAtoNone <- c("")
-housetmp <- house
-housetmp$Alley <- as.character(housetmp$Alley)
-housetmp[7][is.na(housetmp[7])] <- "None"
-housetmp$Alley <- as.factor(housetmp$Alley)
-house <- housetmp
-```
-
-We need to do ^ with all of the following variables (each one has NA as an 
-indicator that the house does not have that feature, so we have to change the NA
-to something else to have it be considered in the model): 
-Fence
-PoolQC
-FireplaceQu
-MiscFeature
-GarageCond
-GarageQual
-GarageFinish
-GarageYrBlt
-GarageType
-BsmtFinType2 
-BsmtFinType1 
-BsmtExposure 
-BsmtCond 
-BsmtQual 
-How do you 
-
 
 
 # Goal: Explore the Kaggle housing dataset
