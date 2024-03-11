@@ -9,34 +9,44 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(mice)
+library(xts)
 
 house <- read_csv("train.csv")
-```
+``` 
 
+We need to replace some 'NA's with another label because the data uses 'NA' as an 
+indicator for some variables. The 'NA' label indicates that the house does not have 
+said feature (as noted in the data_description.txt file), so we have to change 
+the NA to something else to have it be considered as a level of each factor in 
+the model.
 
 ```{r, message = FALSE}
+for (i in length(house)) {
+  house [i] <- gsub('\n','',house[i])
+}
+
 NAtoNone <- c(7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
 for (i in NAtoNone) {
   housetmp <- house
-  #housetmp[i] <- as.character(housetmp[i])
   housetmp[i][is.na(housetmp[i])] <- "None"
-  #housetmp$Alley <- as.factor(housetmp$Alley)
   house <- housetmp
 }
 ```
 
-We need to do this with these variables because each one has NA as an 
-indicator that the house does not have that feature (as noted in the 
-data_description.txt file), so we have to change the NA to something else to 
-have it be considered as a level of each factor in the model.
+Now, we must change the character variables to factor variables. Additionally, 
+some other variables are categories that use integer category names which must 
+be changed individually.
 
 ```{r, include = FALSE, message=FALSE}
 house <- house %>% mutate_if(is.character, as.factor)
 house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
-#should we include YrSold, YrBuilt, YrRennovated, 
-# MoSold, or any of the OverallQual or OverallCond? How do
-#we configure the year? Should we change the NAs in the
-#Alley column to 0 or will it work with NAs?
+
+house$YearBuilt <- lubridate::ymd(house$YearBuilt,truncated=2L)
+house$YearRemodAdd <- lubridate::ymd(house$YearRemodAdd,truncated=2L)
+house$GarageYrBlt <- lubridate::ymd(house$GarageYrBlt,truncated=2L)
+
+## Next step::Combine YrSold and MoSold into one column
+#library(zoo)? as.yearmo
 ```
 
 
