@@ -21,11 +21,7 @@ the NA to something else to have it be considered as a level of each factor in
 the model.
 
 ```{r, message = FALSE}
-for (i in length(house)) {
-  house [i] <- gsub('\n','',house[i])
-}
-
-NAtoNone <- c(7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
+NAtoNone <- c(2,7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
 for (i in NAtoNone) {
   housetmp <- house
   housetmp[i][is.na(housetmp[i])] <- "None"
@@ -39,14 +35,17 @@ be changed individually.
 
 ```{r, include = FALSE, message=FALSE}
 house <- house %>% mutate_if(is.character, as.factor)
-house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
+house <- house %>% mutate_at('MSSubClass', as_factor) 
 
 house$YearBuilt <- lubridate::ymd(house$YearBuilt,truncated=2L)
 house$YearRemodAdd <- lubridate::ymd(house$YearRemodAdd,truncated=2L)
 house$GarageYrBlt <- lubridate::ymd(house$GarageYrBlt,truncated=2L)
 
-## Next step::Combine YrSold and MoSold into one column
-#library(zoo)? as.yearmo
+YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
+YrMoSold <- as_date(YrMoSold)
+
+house <- house[-c(77,78)]
+house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
 ```
 
 
