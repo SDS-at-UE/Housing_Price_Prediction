@@ -96,3 +96,22 @@ Missing Data:
 md.pattern(house)
 ```
 
+
+How does the 2008 housing crash affect prices, does it at all? Can we use this pattern to predict other crashes in history?
+
+How does sale price vary over time? 
+
+What years do we have the most data? 
+
+How does the relationship between sale price and number of houses over time covary? 
+```{r}
+hist(house$YrMoSold,breaks = 30)
+plot(house$YrMoSold,house$SalePrice)
+```
+
+
+If we are to include GarageYrBlt, how do we handle the data if there is no garage? If we change it to a factor, what categories do we split them into? (old, mid, new OR 1900-1910, ..., 2000-2010) And should the categories be chosen so each category has an even numbers of observations or maintain the distribution of observations in the categories? Should we use the quartiles to choose the delineations? 
+```{r}
+hist(house$GarageYrBlt,breaks = 30)
+```
+
