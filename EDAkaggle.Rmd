@@ -102,6 +102,64 @@ for (i in 1:length(house)) {
 ```
 
 LotFrontage has 259 missing values. What imputation technique should we use to handle it?
+```{r}
+house1 = house
+hosue1 = house1 %>% filter(LotFrontage < 200) ## This doesn't work
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = MSSubClass, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = MSZoning, y = LotFrontage))
+
+ggplot(data = house,aes(x = LotArea, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Street, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Alley, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LotShape, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LandContour, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LotConfig, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LandSlope, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Condition1, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Condition2, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = BldgType, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = HouseStyle, y = LotFrontage))
+
+ggplot(data = house,aes(x = YearBuilt, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Foundation, y = LotFrontage))
+
+ggplot(data = house1 ,aes(x = GrLivArea, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+cor(house$LotFrontage, house$LotArea) ## Returns NA
+```
+
 
 If we are to include GarageYrBlt, how do we handle the data if there is no garage? If we change it to a factor, what categories do we split them into? (old, mid, new OR 1900-1910, ..., 2000-2010) And should the categories be chosen so each category has an even numbers of observations or maintain the distribution of observations in the categories? Should we use the quartiles to choose the delineations? 
 ```{r}
