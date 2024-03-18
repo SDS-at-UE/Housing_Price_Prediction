@@ -1,0 +1,48 @@
+---
+title: "Data Comparison"
+author: "Jeremiah Sagers"
+date: "2/27/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(mice)
+library(data.table)
+```
+
+```{r, include = FALSE, message=FALSE}
+train <- read_csv("train.csv")
+train <- train %>% mutate_if(is.character, as.factor)
+train <- train %>% mutate_at(c('MSSubClass','MoSold'), as_factor)
+test <- read_csv("test.csv")
+test <- test %>% mutate_if(is.character, as.factor)
+test <- test %>% mutate_at(c('MSSubClass','MoSold'), as_factor)
+noprice <- rbind(train[-81], test)
+
+house2 <- read_csv("AmesHousing.csv")
+house2 <- house2 %>% mutate_if(is.character, as.factor)
+house2 <- house2 %>% mutate_at(c('MS SubClass','Mo Sold'), as_factor)
+house2 <- house2[-2] # remove variable not present in train/test
+housenoprice <- house2[-81]
+housenoprice <- housenoprice %>% filter(Order < 2920) # set dimensions equal to "noprice" for all_equal() to work
+
+# make column names identical to "noprice"
+names(housenoprice) <- gsub(" ", "", names(housenoprice))
+names(housenoprice)[names(housenoprice) == 'Order'] <- 'Id'
+names(housenoprice)[names(housenoprice) == 'YearRemod/Add'] <- 'YearRemodAdd'
+housenoprice <- housenoprice %>% mutate(MSSubClass = as.double(MSSubClass))
+
+#rbind(filter(housenoprice, LotArea == 31770)[-1],filter(noprice, LotArea == 31770)[-1])
+#filter(noprice, LotArea == 31770)
+#noprice[172,]
+#housenoprice %>% filter(`Lot Area` == 31770)
+#isTRUE(noprice[172,2:80] == housenoprice[1,2:80])
+#noprice[172,2:80] == housenoprice[1,2:80]
+all_equal(housenoprice[-1], noprice[-1], ignore_row_order = TRUE)
+```
+
+I don't remember how I got all_equal to work (or if I used a different function), but I copied the output below:
+[1] "- Rows in x but not in y: 107, 108, 211, 576, 946, 1014, 1184, 1408, 1491, 1554, 1555, 1557, 1611, 1858, 1941, 2044, 2070, 2090, 2137, 2181, 2257, 2279, 2299, 2519, 2520, 2521, 2522, 2789, 2893, 2904\n- Rows in y but not in x: 296, 455, 562, 909, 941, 1435, 1556, 1916, 1946, 2041, 2152, 2186, 2217, 2218, 2219, 2251, 2421, 2474, 2490, 2504, 2525, 2550, 2600, 2611, 2905, 2915, 2916, 2917, 2918, 2919\n"
+
