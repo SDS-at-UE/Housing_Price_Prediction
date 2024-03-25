@@ -5,7 +5,7 @@ date: "2/27/2024"
 output: html_document
 ---
 
-```{r setup, include=FALSE, message=FALSE}
+```{r setup, include=FALSE, message=FALSE, echo = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(mice)
@@ -14,6 +14,8 @@ library(ggplot2)
 
 house <- read_csv("train.csv")
 ``` 
+
+---
 
 We need to replace some 'NA's with another label because the data uses 'NA' as an 
 indicator for some variables. The 'NA' label indicates that the house does not have 
@@ -91,7 +93,6 @@ Summary and Variable Types:
 summary(house)
 ```
 
-
 Missing Data:
 ```{r}
 md.pattern(house)
@@ -168,6 +169,7 @@ imputed_house <- mice(numhouse,
 imputed_house$loggedEvents
 ```
 
+While this command runs, many of the variables are marked as "(nearly) multi-collinear." The logged events command asks "Does your dataset contain duplicates, linear transformation, or factors with unique respondent names?" How do we approach this problem?
 
 ```{r}
 imphouse <- complete(imputed_house)
