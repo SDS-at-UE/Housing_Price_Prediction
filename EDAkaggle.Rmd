@@ -63,7 +63,6 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
 
 ---
 
-
 ## Questions: 
 
 **How large is the data? What is the quality of the data?**
@@ -73,6 +72,8 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
 **Is there a substantial amount of missing data?**
 
 -If so, what kind of imputation would be most useful?
+
+-Do we have any outliers?
 
 **Are there variables that vary highly with one another(covariates)?**
 
@@ -96,15 +97,20 @@ lazypredict python
 **Once finished, how similar is the Ames dataset?**
 
 
-###Size and Quality of Data
+### Size and Quality of Data
 
 Summary and Variable Types:
+
 ```{r}
 summary(house)
 ```
 
-###Imputation 
+### **ADD**: what does this summary tell us?
+
+### Imputation 
+
 Missing Data:
+
 ```{r}
 md.pattern(house)
 
@@ -114,7 +120,9 @@ for (i in 1:length(house)) {
 ```
 
 P: LotFrontage has 259 missing values. What imputation technique should we use to handle it?
+
 S: MICE's PMM (predictive mean matching) can be used because we are imputing numeric data. 
+
 ```{r}
 house1 = house
 hosue1 = house1 %>% filter(LotFrontage < 200) ## This doesn't work
@@ -172,6 +180,9 @@ ggplot(data = house1 ,aes(x = GrLivArea, y = LotFrontage)) +
 
 cor(house$LotFrontage, house$LotArea) ## Returns NA
 ```
+
+### **ADD**: description of these graphs, what does it mean that the cov function returns an NA?
+
 ```{r}
 numhouse <- select_if(house, is.numeric)
 imputed_house <- mice(numhouse, 
@@ -182,6 +193,7 @@ imputed_house$loggedEvents
 ```
 
 P: While this command runs, many of the variables are marked as "(nearly) multi-collinear." The logged events command asks "Does your dataset contain duplicates, linear transformation, or factors with unique respondent names?" How do we approach this problem?
+
 S: Since it is just a warning we can leave it for now and return to it later if we have time. 
 
 ```{r}
@@ -195,18 +207,26 @@ house <- housetmp
 summary(house)
 md.pattern(house)
 ```
-Now we only have one column with NA's left. 
+Now we only have one column with NA's left: GarageYrBlt. 
+
 
 ### Handling GarageYrBuilt
+
 ---
+
 P: This variable is tricky. It is the date of garage construction with an NA meaning that there is no garage attached to the house. To impute an NA for this variable would be meaningless because there would be no garage to have been built on an imputed day- imputation would ignore the real-world meaning of this variable and potentially skew sales price. However, leaving the NA's without imputation could impede upon model creation. Additionally, this variable could hold important information about the sales price, so it may be unwise to simply take the column out without knowing if it is valuable. 
-S: We will investigate the similarity between other garage variables and GarageYrBlt to see if the impact of GarageYrBlt on SalePrice can be summarized by other variables. If other variables cannot summarize what GarageYrBlt can provide to models, we must create a categorical variable for GarageYrBlt. We will balance the distribution of the variable along with real-world phenomena that may have had an impact on SalePrice
 
-If we are to include GarageYrBlt, how do we handle the data if there is no garage? If we change it to a factor, what categories do we split them into? (old, mid, new OR 1900-1910, ..., 2000-2010) And should the categories be chosen so each category has an even numbers of observations or maintain the distribution of observations in the categories? Should we use the quartiles to choose the delineations? 
-If we use imputeTS package, should we remove other date columns? 
+S: We will investigate the similarity between other garage variables and GarageYrBlt to see if the impact of GarageYrBlt on SalePrice can be summarized by other variables. After analyzing the relationship between GarageYrBlt, Sales Price, and other garage variables, we feel comfortable taking out the variable entirely. We will also try and create a categorical variable for GarageYrBlt (1900-1940 old, 1940-1980 mid, 1980-2010 new). 
+
 ```{r}
-print(select(house, row.names = c("GarageYrBlt", "GarageArea")))
+p <- print(select(house, row.names = c("GarageYrBlt", "GarageArea")))
+p[p[2]== 0,]
+p[is.na(p[1]),] 
+```
 
+The above shows that each instance of an NA date corresponds to a 0 GarageArea and vice versa. 
+
+```{r}
 hist(house$GarageYrBlt,breaks = 30)
 ggplot(aes(x = GarageYrBlt, y = SalePrice), data = house) +
   geom_point()
@@ -221,26 +241,34 @@ ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageFinish), data = house) 
 ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
   geom_point()
 ```
-1900-1940 old, 1940-1980 mid, 1980-2010 new
 
+### **ADD**: How do we interpret these graphs?
 
 ---
 
+### Outliers
+
+```{r}
+
+```
+
+### **ADD**: Take out outliers
+
 ### Other Q?
 
-How does the 2008 housing crash affect prices, does it at all? Can we use this pattern to predict other crashes in history?
+How does the 2008 housing crash affect prices, does it at all?
 
 How does sale price vary over time? 
 
 What years do we have the most data? 
 
-How does the relationship between sale price and number of houses in the data per year covary? 
+How do sale price and number of houses in the data per year relate? 
 
 ```{r}
 hist(house$YrMoSold,breaks = 30)
 plot(house$YrMoSold,house$SalePrice)
 ```
 
-
+### **ADD**: description of these graphs
 
 
