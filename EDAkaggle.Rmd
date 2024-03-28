@@ -244,6 +244,11 @@ ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
 
 ### **ADD**: How do we interpret these graphs?
 
+```{r}
+house <- house[-60] # Taking out GarageYrBlt
+```
+
+
 ---
 
 ### Outliers
