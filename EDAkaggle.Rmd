@@ -91,6 +91,7 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
 -Can we predict house size based on sales price? 
 
 ***What kinds of models would be best fit for our data?***
+lazypredict python
 
 **Once finished, how similar is the Ames dataset?**
 
@@ -187,14 +188,9 @@ S: Since it is just a warning we can leave it for now and return to it later if 
 set.seed(1)
 imphouse <- complete(imputed_house)
 housetmp <- house
-
-#### Repair this, takes out many columns/values for no reason
-#for (i in names(imphouse)[2:length(names(imphouse))]) {
-#  housetmp[i] <- imphouse[match(housetmp$ID, imphouse$ID)]
-#}
-####
-
-
+for (i in names(imphouse)[2:length(names(imphouse))]) {
+  housetmp[i] <- imphouse[i]
+}
 house <- housetmp
 summary(house)
 md.pattern(house)
@@ -209,19 +205,23 @@ S: We will investigate the similarity between other garage variables and GarageY
 If we are to include GarageYrBlt, how do we handle the data if there is no garage? If we change it to a factor, what categories do we split them into? (old, mid, new OR 1900-1910, ..., 2000-2010) And should the categories be chosen so each category has an even numbers of observations or maintain the distribution of observations in the categories? Should we use the quartiles to choose the delineations? 
 If we use imputeTS package, should we remove other date columns? 
 ```{r}
+print(select(house, row.names = c("GarageYrBlt", "GarageArea")))
+
 hist(house$GarageYrBlt,breaks = 30)
-ggplot(aes(x = GarageYrBlt, y = GarageArea, color = SalePrice), data = house) +
+ggplot(aes(x = GarageYrBlt, y = SalePrice), data = house) +
   geom_point()
-ggplot(aes(x = GarageYrBlt, y = GarageQual), data = house) +
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageArea), data = house) +
   geom_point()
-ggplot(aes(x = GarageYrBlt, y = GarageCond), data = house) +
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageQual), data = house) +
   geom_point()
-ggplot(aes(x = GarageYrBlt, y = GarageFinish), data = house) +
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageCond), data = house) +
   geom_point()
-ggplot(aes(x = GarageYrBlt, y = GarageType), data = house) +
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageFinish), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
   geom_point()
 ```
-
+1900-1940 old, 1940-1980 mid, 1980-2010 new
 
 
 ---
@@ -234,7 +234,8 @@ How does sale price vary over time?
 
 What years do we have the most data? 
 
-How does the relationship between sale price and number of houses over time covary? 
+How does the relationship between sale price and number of houses in the data per year covary? 
+
 ```{r}
 hist(house$YrMoSold,breaks = 30)
 plot(house$YrMoSold,house$SalePrice)
