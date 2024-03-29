@@ -1,5 +1,5 @@
 ---
-title: "EDA kaggle"
+title: "EDA Kaggle"
 author: "Gideon Wolf"
 date: "2/27/2024"
 output: html_document
@@ -19,6 +19,8 @@ house <- read_csv("train.csv")
 # EDA Goal: Explore the Kaggle housing dataset and prepare for model fitting
 
 ---
+
+###
 
 ###Data Wrangling
 
@@ -248,16 +250,28 @@ ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
 house <- house[-60] # Taking out GarageYrBlt
 ```
 
-
 ---
 
 ### Outliers
 
 ```{r}
-
+housetmp <- select_if(house, is.numeric)
+for (i in 1:length(housetmp)) {
+  print(names(housetmp[i]))
+  col <- housetmp[,i]
+  z <- vector("numeric", length = length(col))
+  outliers <- vector("numeric")
+  for (j in 1:length(col)) {
+    z[j] <- (col[j]-mean(col))/sd(col)
+    outliers <- append(outliers, if(abs(z[j]) > 4) j) }
+  cat("Index of outliers: ", outliers, "\n")
+  cat("Value of outliers: ", col[outliers], "\n")
+  cat("           Min, 1st, Med, Mean, 3rd, Max\n")
+  cat("Quartiles: ", summary(housetmp[,i]), "\n\n")
+}
 ```
 
-### **ADD**: Take out outliers
+### **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 4 standard deviations away from the mean, is that fine or should it be changed? 
 
 ### Other Q?
 
