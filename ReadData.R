@@ -16,17 +16,18 @@ for (i in NAtoNone) {
 house <- house[-1380,]
 
 house <- house %>% mutate_if(is.character, as.factor)
-house <- house %>% mutate_at('MSSubClass', as_factor) 
+house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
 
-house$YearBuilt <- lubridate::ymd(house$YearBuilt,truncated=2L)
-house$YearRemodAdd <- lubridate::ymd(house$YearRemodAdd,truncated=2L)
-house$GarageYrBlt <- lubridate::ymd(house$GarageYrBlt,truncated=2L)
 
 YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
 YrMoSold <- as_date(YrMoSold)
+house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
 
-house <- house[-c(77,78)]
-house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
+
+
+# Take out GarageYrBlt
+house <- house[-60]
+
 
 
 # Imputation
@@ -46,6 +47,3 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 house <- housetmp
 
 
-
-# Take out GarageYrBlt
-house <- house[-60]

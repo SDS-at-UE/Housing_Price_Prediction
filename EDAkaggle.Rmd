@@ -20,10 +20,9 @@ house <- read_csv("train.csv")
 
 ---
 
-###
+## Data Handling {.tabset}
 
-###Data Wrangling
-
+### Data Wrangling
 We need to replace some 'NA's with another label because the data uses 'NA' as an 
 indicator for some variables. The 'NA' label indicates that the house does not have 
 said feature (as noted in the data_description.txt file), so we have to change 
@@ -52,18 +51,11 @@ be changed individually.
 house <- house %>% mutate_if(is.character, as.factor)
 house <- house %>% mutate_at('MSSubClass', as_factor) 
 
-house$YearBuilt <- lubridate::ymd(house$YearBuilt,truncated=2L)
-house$YearRemodAdd <- lubridate::ymd(house$YearRemodAdd,truncated=2L)
-house$GarageYrBlt <- lubridate::ymd(house$GarageYrBlt,truncated=2L)
-
 YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
 YrMoSold <- as_date(YrMoSold)
-
-house <- house[-c(77,78)]
-house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
+house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
 ```
 
----
 
 ### Size and Quality of Data
 
@@ -73,7 +65,45 @@ Summary and Variable Types:
 summary(house)
 ```
 
-### **ADD**: what does this summary tell us?
+**ADD**: what does this summary tell us?
+
+
+### Handling GarageYrBuilt
+
+P: This variable is tricky. It is the date of garage construction with an NA meaning that there is no garage attached to the house. To impute an NA for this variable would be meaningless because there would be no garage to have been built on an imputed day- imputation would ignore the real-world meaning of this variable and potentially skew sales price. However, leaving the NA's without imputation could impede upon model creation. Additionally, this variable could hold important information about the sales price, so it may be unwise to simply take the column out without knowing if it is valuable. 
+
+S: We will investigate the similarity between other garage variables and GarageYrBlt to see if the impact of GarageYrBlt on SalePrice can be summarized by other variables. After analyzing the relationship between GarageYrBlt, Sales Price, and other garage variables, we feel comfortable taking out the variable entirely. We will also try and create a categorical variable for GarageYrBlt (1900-1940 old, 1940-1980 mid, 1980-2010 new). 
+
+```{r}
+p <- print(select(house, row.names = c("GarageYrBlt", "GarageArea")))
+p[p[2]== 0,]
+p[is.na(p[1]),] 
+```
+
+The above shows that each instance of an NA date corresponds to a 0 GarageArea and vice versa. 
+
+```{r}
+hist(house$GarageYrBlt,breaks = 30)
+ggplot(aes(x = GarageYrBlt, y = SalePrice), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageArea), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageQual), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageCond), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageFinish), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
+  geom_point()
+```
+
+**ADD**: How do we interpret these graphs?
+
+```{r}
+house <- house[-60] # Taking out GarageYrBlt
+```
+
 
 ### Imputation 
 
@@ -149,7 +179,7 @@ ggplot(data = house1 ,aes(x = GrLivArea, y = LotFrontage)) +
 cor(house$LotFrontage, house$LotArea) ## Returns NA
 ```
 
-### **ADD**: description of these graphs, what does it mean that the cov function returns an NA?
+**ADD**: description of these graphs, what does it mean that the cov function returns an NA?
 
 ```{r}
 numhouse <- select_if(house, is.numeric)
@@ -178,45 +208,6 @@ md.pattern(house)
 Now we only have one column with NA's left: GarageYrBlt. 
 
 
-### Handling GarageYrBuilt
-
----
-
-P: This variable is tricky. It is the date of garage construction with an NA meaning that there is no garage attached to the house. To impute an NA for this variable would be meaningless because there would be no garage to have been built on an imputed day- imputation would ignore the real-world meaning of this variable and potentially skew sales price. However, leaving the NA's without imputation could impede upon model creation. Additionally, this variable could hold important information about the sales price, so it may be unwise to simply take the column out without knowing if it is valuable. 
-
-S: We will investigate the similarity between other garage variables and GarageYrBlt to see if the impact of GarageYrBlt on SalePrice can be summarized by other variables. After analyzing the relationship between GarageYrBlt, Sales Price, and other garage variables, we feel comfortable taking out the variable entirely. We will also try and create a categorical variable for GarageYrBlt (1900-1940 old, 1940-1980 mid, 1980-2010 new). 
-
-```{r}
-p <- print(select(house, row.names = c("GarageYrBlt", "GarageArea")))
-p[p[2]== 0,]
-p[is.na(p[1]),] 
-```
-
-The above shows that each instance of an NA date corresponds to a 0 GarageArea and vice versa. 
-
-```{r}
-hist(house$GarageYrBlt,breaks = 30)
-ggplot(aes(x = GarageYrBlt, y = SalePrice), data = house) +
-  geom_point()
-ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageArea), data = house) +
-  geom_point()
-ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageQual), data = house) +
-  geom_point()
-ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageCond), data = house) +
-  geom_point()
-ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageFinish), data = house) +
-  geom_point()
-ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
-  geom_point()
-```
-
-### **ADD**: How do we interpret these graphs?
-
-```{r}
-house <- house[-60] # Taking out GarageYrBlt
-```
-
----
 
 ### Outliers
 
@@ -237,8 +228,7 @@ for (i in 1:length(housetmp)) {
 }
 ```
 
-### **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 5 standard deviations away from the mean, is that fine or should it be changed? 
-
+**ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 5 standard deviations away from the mean, is that fine or should it be changed? 
 
 ---
 
@@ -274,8 +264,12 @@ ggplot(data = house, aes(x = YearRemodAdd, y = OverallCond)) +
 h_lm <- lm(SalePrice~YrMoSold, data= house)
 plot(h_lm)
 ```
+slope ~= 0, no correlation relationship.
 
 -Does zone and house size have any correlation?
+```{r}
+
+```
 
 **What distribution describes each variable?** 
 
@@ -303,6 +297,9 @@ hist(house$YrMoSold,breaks = 30)
 plot(house$YrMoSold,house$SalePrice)
 ```
 
-### **ADD**: description of these graphs
+**ADD**: description of these graphs
 
 
+## Modelling Stuff
+
+"lazy()" function in R (alongside predict.lazy())
