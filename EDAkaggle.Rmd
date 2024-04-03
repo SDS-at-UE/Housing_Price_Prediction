@@ -65,40 +65,6 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 76))
 
 ---
 
-## Questions: 
-
-**How large is the data? What is the quality of the data?**
-
--What type of variables are we working with?
-
-**Is there a substantial amount of missing data?**
-
--If so, what kind of imputation would be most useful?
-
--Do we have any outliers?
-
-**Are there variables that vary highly with one another(covariates)?**
-
--Does month sold affect the price sold? 
-
--Is there a connection between Rennovation date and overall quality?
-
--Does zone and house size have any correlation?
-
-**What distribution describes each variable?** 
-
-**Can we make our response categorical?**
-
--Are there natural delineations in sales price(i.e. low, medium, high)?
-
--Can we predict house size based on sales price? 
-
-***What kinds of models would be best fit for our data?***
-lazypredict python
-
-**Once finished, how similar is the Ames dataset?**
-
-
 ### Size and Quality of Data
 
 Summary and Variable Types:
@@ -263,7 +229,7 @@ for (i in 1:length(housetmp)) {
   outliers <- vector("numeric")
   for (j in 1:length(col)) {
     z[j] <- (col[j]-mean(col))/sd(col)
-    outliers <- append(outliers, if(abs(z[j]) > 4) j) }
+    outliers <- append(outliers, if(abs(z[j]) > 5) j) }
   cat("Index of outliers: ", outliers, "\n")
   cat("Value of outliers: ", col[outliers], "\n")
   cat("           Min, 1st, Med, Mean, 3rd, Max\n")
@@ -271,17 +237,66 @@ for (i in 1:length(housetmp)) {
 }
 ```
 
-### **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 4 standard deviations away from the mean, is that fine or should it be changed? 
+### **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 5 standard deviations away from the mean, is that fine or should it be changed? 
 
-### Other Q?
 
-How does the 2008 housing crash affect prices, does it at all?
+---
 
-How does sale price vary over time? 
+## Questions: 
 
-What years do we have the most data? 
+All answered above: 
+**How large is the data? What is the quality of the data?**
+-What type of variables are we working with?
+**Is there a substantial amount of missing data?**
+-If so, what kind of imputation would be most useful?
+-Do we have any outliers?
 
-How do sale price and number of houses in the data per year relate? 
+To answer: 
+**Are there variables that vary highly with one another(covariates)?**
+
+-Does month sold affect the price sold? 
+```{r}
+ggplot(data = house, aes(x = YrMoSold, y = SalePrice)) +
+  geom_point() +
+  geom_smooth(method='lm',se = TRUE)
+
+h_lm <- lm(SalePrice~YrMoSold, data= house)
+plot(h_lm)
+```
+Slope ~= 0, no relationship
+
+-Is there a connection between Rennovation date and overall quality?
+```{r}
+ggplot(data = house, aes(x = YearRemodAdd, y = OverallCond)) +
+  geom_jitter() +
+  geom_smooth(method='lm',se = TRUE)
+
+h_lm <- lm(SalePrice~YrMoSold, data= house)
+plot(h_lm)
+```
+
+-Does zone and house size have any correlation?
+
+**What distribution describes each variable?** 
+
+**Can we make our response categorical?**
+
+-Are there natural delineations in sales price(i.e. low, medium, high)?
+
+-Can we predict house size based on sales price? 
+
+***What kinds of models would be best fit for our data?***
+lazypredict python
+
+**Once finished, how similar is the Ames dataset?**
+
+-How does the 2008 housing crash affect prices, does it at all?
+
+-How does sale price vary over time? 
+
+-What years do we have the most data? 
+
+-How do sale price and number of houses in the data per year relate? 
 
 ```{r}
 hist(house$YrMoSold,breaks = 30)
