@@ -5,6 +5,7 @@ library(ggplot2)
 
 
 # Read in data, handle NAs
+house <- read.csv("train.csv")
 
 NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
 for (i in NAtoNone) {
@@ -45,4 +46,4 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 }
 house <- housetmp
 
-
+md.pattern(house) # Should get cat picture if it works

@@ -30,7 +30,7 @@ the NA to something else to have it be considered as a level of each factor in
 the model.
 
 ```{r, message = FALSE}
-NAtoNone <- c(2,7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
+NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
 for (i in NAtoNone) {
   housetmp <- house
   housetmp[i][is.na(housetmp[i])] <- "None"
@@ -38,10 +38,6 @@ for (i in NAtoNone) {
 }
 ```
 
-Taking out the single NA value in Electrical- removing row. 
-```{r}
-house <- house[-1380,]
-```
 
 Now, we must change the character variables to factor variables. Additionally, 
 some other variables are categories that use integer category names which must 
@@ -303,3 +299,35 @@ plot(house$YrMoSold,house$SalePrice)
 ## Modelling Stuff
 
 "lazy()" function in R (alongside predict.lazy())
+
+```{python}
+import lazypredict
+import pandas as pd
+
+from lazypredict.Supervised import LazyClassifier
+from lazypredict.Supervised import LazyRegressor
+#from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+
+df = house
+list(df.columns)
+
+X = df_new.drop('tip_temp', axis='columns')
+y = df_new.tip_temp
+
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=.5,random_state =123)
+
+# classification:
+#clf = LazyClassifier(verbose=0,ignore_warnings=True, custom_metric=None)
+#models,predictions = clf.fit(X_train, X_test, y_train, y_test)
+#print(models)
+
+#Regression:
+reg = LazyRegressor(verbose=0, ignore_warnings=False, custom_metric=None)
+models, predictions = reg.fit(X_train, X_test, y_train, y_test)
+
+print(models)
+```
+
+
+
