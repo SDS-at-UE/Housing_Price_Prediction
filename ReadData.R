@@ -5,9 +5,8 @@ library(ggplot2)
 
 
 # Read in data, handle NAs
-house <- read_csv("train.csv")
 
-NAtoNone <- c(2,7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
+NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
 for (i in NAtoNone) {
   housetmp <- house
   housetmp[i][is.na(housetmp[i])] <- "None"
