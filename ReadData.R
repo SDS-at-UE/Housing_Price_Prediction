@@ -36,7 +36,6 @@ imputed_house <- mice(numhouse,
                       m = 10,  
                       method = 'pmm', 
                       seed = 1)
-imputed_house$loggedEvents
 
 set.seed(1)
 imphouse <- complete(imputed_house)

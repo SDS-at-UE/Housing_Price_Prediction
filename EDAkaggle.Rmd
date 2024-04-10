@@ -20,6 +20,14 @@ house <- read_csv("train.csv")
 
 ---
 
+## Initial Questions:
+
+**How large is the data? What is the quality of the data?**
+-What type of variables are we working with?
+**Is there a substantial amount of missing data?**
+-If so, what kind of imputation would be most useful?
+-Do we have any outliers?
+
 ## Data Handling {.tabset}
 
 ### Data Wrangling
@@ -228,19 +236,20 @@ for (i in 1:length(housetmp)) {
 
 ---
 
+\
+\
+
+
+
+\
 ## Questions: 
 
-All answered above: 
-**How large is the data? What is the quality of the data?**
--What type of variables are we working with?
-**Is there a substantial amount of missing data?**
--If so, what kind of imputation would be most useful?
--Do we have any outliers?
-
 To answer: 
-**Are there variables that vary highly with one another(covariates)?**
 
--Does month sold affect the price sold? 
+<details>
+  <summary>**How do the variables covary?**</summary>
+  
+  -Does month sold affect the price sold? 
 ```{r}
 ggplot(data = house, aes(x = YrMoSold, y = SalePrice)) +
   geom_point() +
@@ -249,9 +258,9 @@ ggplot(data = house, aes(x = YrMoSold, y = SalePrice)) +
 h_lm <- lm(SalePrice~YrMoSold, data= house)
 plot(h_lm)
 ```
-Slope ~= 0, no relationship
+  Slope ~= 0, no relationship
 
--Is there a connection between Rennovation date and overall quality?
+  -Is there a connection between Rennovation date and overall quality?
 ```{r}
 ggplot(data = house, aes(x = YearRemodAdd, y = OverallCond)) +
   geom_jitter() +
@@ -260,74 +269,62 @@ ggplot(data = house, aes(x = YearRemodAdd, y = OverallCond)) +
 h_lm <- lm(SalePrice~YrMoSold, data= house)
 plot(h_lm)
 ```
-slope ~= 0, no correlation relationship.
+  slope ~= 0, no correlation relationship.
 
--Does zone and house size have any correlation?
+  -Does zone and house size have any correlation?
 ```{r}
 
 ```
 
-**What distribution describes each variable?** 
+</details> 
+\
 
-**Can we make our response categorical?**
 
--Are there natural delineations in sales price(i.e. low, medium, high)?
+<details>
+  <summary>**How does each variable explain the data?**</summary>
+  
+  -How much impact does house size have on sales price?
+  
+  -How does sale price vary over time? 
 
--Can we predict house size based on sales price? 
+  -What years do we have the most data? 
 
-***What kinds of models would be best fit for our data?***
-lazypredict python
-
-**Once finished, how similar is the Ames dataset?**
-
--How does the 2008 housing crash affect prices, does it at all?
-
--How does sale price vary over time? 
-
--What years do we have the most data? 
-
--How do sale price and number of houses in the data per year relate? 
+  -How do sale price and number of houses in the data per year relate? 
 
 ```{r}
 hist(house$YrMoSold,breaks = 30)
 plot(house$YrMoSold,house$SalePrice)
 ```
 
-**ADD**: description of these graphs
+  **ADD**: description of these graphs
+  
+</details> 
+\
 
 
-## Modelling Stuff
 
-"lazy()" function in R (alongside predict.lazy())
-
-```{python}
-import lazypredict
-import pandas as pd
-
-from lazypredict.Supervised import LazyClassifier
-from lazypredict.Supervised import LazyRegressor
-#from sklearn.datasets import load_breast_cancer
-from sklearn.model_selection import train_test_split
-
-df = house
-list(df.columns)
-
-X = df_new.drop('tip_temp', axis='columns')
-y = df_new.tip_temp
-
-X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=.5,random_state =123)
-
-# classification:
-#clf = LazyClassifier(verbose=0,ignore_warnings=True, custom_metric=None)
-#models,predictions = clf.fit(X_train, X_test, y_train, y_test)
-#print(models)
-
-#Regression:
-reg = LazyRegressor(verbose=0, ignore_warnings=False, custom_metric=None)
-models, predictions = reg.fit(X_train, X_test, y_train, y_test)
-
-print(models)
-```
+<details>
+  <summary>**Extra questions**</summary>
+  
+  -Once finished, how similar is the Ames dataset?
+  
+  -How does the 2008 housing crash affect prices, does it at all?
+  
+  -Can we make our response categorical?
+    
+  Our output for Kaggle must be continuous, but is there a way to narrow down this response by using categories? Are there natural delineations in sales price(i.e. low, medium, high)? 
+  
+</details> 
+\
 
 
+<details>
+  <summary>**Modelling preparation**</summary>
+  
+  -What kinds of models would be best fit for our data?
+  
+  Using lazypredict in python, we may get a better idea of what the best model to use is.
+  
+</details>\
+\
 
