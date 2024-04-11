@@ -40,9 +40,11 @@ imputed_house <- mice(numhouse,
 set.seed(1)
 imphouse <- complete(imputed_house)
 housetmp <- house
+s = 1
 for (i in names(imphouse)[2:length(names(imphouse))]) {
   housetmp[i] <- imphouse[i]
 }
 house <- housetmp
 
 md.pattern(house) # Should get cat picture if it works
+

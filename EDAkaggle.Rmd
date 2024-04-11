@@ -53,7 +53,7 @@ be changed individually.
 
 ```{r, include = FALSE, message=FALSE}
 house <- house %>% mutate_if(is.character, as.factor)
-house <- house %>% mutate_at('MSSubClass', as_factor) 
+house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
 
 YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
 YrMoSold <- as_date(YrMoSold)
@@ -202,6 +202,7 @@ S: Since it is just a warning we can leave it for now and return to it later if 
 set.seed(1)
 imphouse <- complete(imputed_house)
 housetmp <- house
+s = 1
 for (i in names(imphouse)[2:length(names(imphouse))]) {
   housetmp[i] <- imphouse[i]
 }
@@ -271,10 +272,15 @@ plot(h_lm)
 ```
   slope ~= 0, no correlation relationship.
 
-  -Does zone and house size have any correlation?
+  -Does zone and house square feet have any correlation?
 ```{r}
-
+ggplot(house, aes(x= MSZoning, y= (TotalBsmtSF + `X1stFlrSF` + `X2ndFlrSF`))) +
+  geom_boxplot()
+summary(house$MSZoning)
 ```
+  Similar means even with few observations for C (all) and RH variables
+
+  
 
 </details> 
 \
@@ -287,8 +293,14 @@ plot(h_lm)
   
   -How does sale price vary over time? 
 
-  -What years do we have the most data? 
-
+  -What years do we have the most data for? 
+  
+```{r}
+summary(house$YearBuilt)
+summary(house$YearRemodAdd)
+summary(house$YrSold)
+```
+  
   -How do sale price and number of houses in the data per year relate? 
 
 ```{r}
