@@ -225,7 +225,7 @@ for (i in 1:length(housetmp)) {
   outliers <- vector("numeric")
   for (j in 1:length(col)) {
     z[j] <- (col[j]-mean(col))/sd(col)
-    outliers <- append(outliers, if(abs(z[j]) > 5) j) }
+    outliers <- append(outliers, if(abs(z[j]) > 7) j) }
   cat("Index of outliers: ", outliers, "\n")
   cat("Value of outliers: ", col[outliers], "\n")
   cat("           Min, 1st, Med, Mean, 3rd, Max\n")
@@ -234,6 +234,8 @@ for (i in 1:length(housetmp)) {
 ```
 
 **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 5 standard deviations away from the mean, is that fine or should it be changed? 
+
+use par(c(2,2)) to create 4 boxplots to display more obvious outliers
 
 ---
 
@@ -280,6 +282,17 @@ summary(house$MSZoning)
 ```
   Similar means even with few observations for C (all) and RH variables
 
+  -Mice noted multicollinearity in many variables, let's look at the variables more. 
+  
+```{r}
+ggplot( house, aes(x = BsmtFullBath, y =BsmtFinSF1 )) +
+  geom_point()
+```
+
+```{r}
+ggplot( house, aes(x = BsmtFinSF1,y =  GrLivArea)) +
+  geom_point()
+```
   
 
 </details> 
@@ -290,6 +303,20 @@ summary(house$MSZoning)
   <summary>**How does each variable explain the data?**</summary>
   
   -How much impact does house size have on sales price?
+  
+```{r}
+library(gridExtra)
+p1 <- ggplot(house, aes(x=TotalBsmtSF,y=SalePrice)) +
+  geom_point()
+p2 <- ggplot(house, aes(x=LotFrontage,y=SalePrice)) +
+  geom_point()
+p3 <- ggplot(house, aes(x=log(scale(`X1stFlrSF`)),y=SalePrice)) +
+  geom_point()
+p4 <- ggplot(house, aes(x=`X2ndFlrSF`,y=SalePrice)) +
+  geom_point()
+
+grid.arrange(p1, p2, p3, p4, ncol=2)
+```
   
   -How does sale price vary over time? 
 
@@ -336,6 +363,7 @@ plot(house$YrMoSold,house$SalePrice)
   -What kinds of models would be best fit for our data?
   
   Using lazypredict in python, we may get a better idea of what the best model to use is.
+    RF, lasso, ridge, 
   
 </details>\
 \
