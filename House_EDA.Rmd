@@ -1,0 +1,406 @@
+---
+title: "House_EDA"
+author: "Jeremiah Sagers"
+date: "4/2/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(mice)
+library(xts)
+library(ggplot2)
+library(car)
+library(MASS)
+
+house3 <- read_csv("train.csv")
+``` 
+do MULTICOLLINEARITY
+Blueste is a neighborhood
+
+# EDA Goal: Explore the Kaggle housing dataset and prepare for model fitting
+
+---
+
+###
+
+###Data Wrangling
+
+We need to replace some 'NA's with another label because the data uses 'NA' as an 
+indicator for some variables. The 'NA' label indicates that the house does not have 
+said feature (as noted in the data_description.txt file), so we have to change 
+the NA to something else to have it be considered as a level of each factor in 
+the model.
+
+```{r, message = FALSE}
+NAtoNone <- c(2,7,26,31,32,33,34,36,58,59,61,64,65,73,74,75)
+for (i in NAtoNone) {
+  housetmp <- house3
+  housetmp[i][is.na(housetmp[i])] <- "None"
+  house3 <- housetmp
+}
+```
+
+Taking out the single NA value in Electrical- removing row. 
+```{r}
+house3 <- house3[-1380,]
+```
+
+Now, we must change the character variables to factor variables. Additionally, 
+some other variables are categories that use integer category names which must 
+be changed individually.
+
+```{r, include = FALSE, message=FALSE}
+house3 <- house3 %>% mutate_if(is.character, as.factor)
+house3 <- house3 %>% mutate_at('MSSubClass', as_factor) 
+
+#house3$YearBuilt <- lubridate::ymd(house3$YearBuilt,truncated=2L)
+#house3$YearRemodAdd <- lubridate::ymd(house3$YearRemodAdd,truncated=2L)
+#house3$GarageYrBlt <- lubridate::ymd(house3$GarageYrBlt,truncated=2L)
+
+YrMoSold <- do.call(paste, c(sep='',list(house3$YrSold),list(rep("-", times = length(house3$YrSold))),list(house3$MoSold),list(rep("-01", times = length(house3$YrSold)))))
+YrMoSold <- as_date(YrMoSold)
+
+house3 <- as.data.frame(append(house3, list(YrMoSold = YrMoSold), after = 78))
+```
+
+---
+
+## Questions: 
+
+**How large is the data? What is the quality of the data?**
+
+-What type of variables are we working with?
+
+**Is there a substantial amount of missing data?**
+
+-If so, what kind of imputation would be most useful?
+
+-Do we have any outliers?
+
+**Are there variables that vary highly with one another(covariates)?**
+
+-Does month sold affect the price sold? 
+
+-Is there a connection between Rennovation date and overall quality?
+
+-Does zone and house size have any correlation?
+
+**What distribution describes each variable?** 
+
+**Can we make our response categorical?**
+
+-Are there natural delineations in sales price(i.e. low, medium, high)?
+
+-Can we predict house size based on sales price? 
+
+***What kinds of models would be best fit for our data?***
+lazypredict python
+
+**Once finished, how similar is the Ames dataset?**
+
+
+### Size and Quality of Data
+
+Summary and Variable Types:
+
+```{r}
+summary(house3)
+```
+
+### **ADD**: what does this summary tell us?
+
+### Imputation 
+
+Missing Data:
+
+```{r}
+md.pattern(house)
+
+for (i in 1:length(house)) {
+  print(sum(is.na(house[i])))
+}
+```
+
+P: LotFrontage has 259 missing values. What imputation technique should we use to handle it?
+
+S: MICE's PMM (predictive mean matching) can be used because we are imputing numeric data. 
+
+```{r}
+house1 = house
+hosue1 = house1 %>% filter(LotFrontage < 200) ## This doesn't work
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = MSSubClass, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = MSZoning, y = LotFrontage))
+
+ggplot(data = house,aes(x = LotArea, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Street, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Alley, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LotShape, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LandContour, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LotConfig, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = LandSlope, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Condition1, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Condition2, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = BldgType, y = LotFrontage))
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = HouseStyle, y = LotFrontage))
+
+ggplot(data = house,aes(x = YearBuilt, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+ggplot(data = house) +
+  geom_boxplot(aes(x = Foundation, y = LotFrontage))
+
+ggplot(data = house1 ,aes(x = GrLivArea, y = LotFrontage)) +
+  geom_point() +
+  geom_smooth()
+
+cor(house3$LotFrontage, house3$LotArea) ## Returns NA
+```
+
+### **ADD**: description of these graphs, what does it mean that the cov function returns an NA?
+
+```{r}
+numhouse <- select_if(house3, is.numeric)
+imputed_house <- mice(numhouse, 
+                       m = 10,  
+                       method = 'pmm', 
+                       seed = 1)
+imputed_house$loggedEvents
+```
+
+P: While this command runs, many of the variables are marked as "(nearly) multi-collinear." The logged events command asks "Does your dataset contain duplicates, linear transformation, or factors with unique respondent names?" How do we approach this problem?
+
+S: Since it is just a warning we can leave it for now and return to it later if we have time. 
+```{r}
+train.df = subset(house3, select=-c(Id, Utilities, BsmtCond, BsmtFinType1, TotalBsmtSF, GrLivArea, GarageFinish, GarageQual, GarageCond, BldgType, Exterior2nd))
+viftest <- lm(SalePrice ~ ., train.df)
+#alias(viftest)$Complete
+vif(viftest)
+```
+Multicollinearity doesn't affect the model's predictions, but it affects the coefficients for the predictors.  This means that for the purpose of the Kaggle competition we don't need to worry about it, but for the presentation it should be addressed.  In assessing the presence of multicollinearity, Id was removed because it's irrelevant, Utilities was removed because lm() gave an error that suggested that some categorical predictors had only one factor level, which is simply not true, but removing Utilities fixes it somehow.  The rest were removed because they were aliases, meaning that they are very highly multicollinear (TotalBsmtSF is a linear transformation of two other predictors, for instance).  Once those are all removed, vif() actually gives results.  YrMoSold is obviously multicollinear with the two variables it's based on, and removing it also decreases their scores.  The only other high VIF (above 10, which corresponds to a R^2 of .9 for the variable modeled using all other predictors) is PoolArea, but unfortunately R doesn't conclude which variable(s) is/are causing this.
+
+
+```{r}
+set.seed(1)
+imphouse <- complete(imputed_house)
+housetmp <- house3
+for (i in names(imphouse)[2:length(names(imphouse))]) {
+  housetmp[i] <- imphouse[i]
+}
+house3 <- housetmp
+summary(house3)
+md.pattern(house3)
+```
+Now we only have one column with NA's left: GarageYrBlt. 
+
+
+### Handling GarageYrBuilt
+
+---
+
+P: This variable is tricky. It is the date of garage construction with an NA meaning that there is no garage attached to the house. To impute an NA for this variable would be meaningless because there would be no garage to have been built on an imputed day- imputation would ignore the real-world meaning of this variable and potentially skew sales price. However, leaving the NA's without imputation could impede upon model creation. Additionally, this variable could hold important information about the sales price, so it may be unwise to simply take the column out without knowing if it is valuable. 
+
+S: We will investigate the similarity between other garage variables and GarageYrBlt to see if the impact of GarageYrBlt on SalePrice can be summarized by other variables. After analyzing the relationship between GarageYrBlt, Sales Price, and other garage variables, we feel comfortable taking out the variable entirely. We will also try and create a categorical variable for GarageYrBlt (1900-1940 old, 1940-1980 mid, 1980-2010 new). 
+
+```{r}
+p <- print(dplyr::select(house3, row.names = c("GarageYrBlt", "GarageArea")))
+p[p[2]== 0,]
+p[is.na(p[1]),] 
+```
+
+The above shows that each instance of an NA date corresponds to a 0 GarageArea and vice versa. 
+
+```{r}
+hist(house3$GarageYrBlt,breaks = 30)
+ggplot(aes(x = GarageYrBlt, y = SalePrice), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageArea), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageQual), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageCond), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageFinish), data = house) +
+  geom_point()
+ggplot(aes(x = GarageYrBlt, y = SalePrice, color = GarageType), data = house) +
+  geom_point()
+```
+
+### **ADD**: How do we interpret these graphs?
+
+```{r}
+house3 <- house3[-60] # Taking out GarageYrBlt
+```
+
+---
+
+### Outliers
+
+```{r}
+housetmp <- select_if(house3, is.numeric)
+for (i in 1:length(housetmp)) {
+  print(names(housetmp[i]))
+  col <- housetmp[,i]
+  z <- vector("numeric", length = length(col))
+  outliers <- vector("numeric")
+  for (j in 1:length(col)) {
+    z[j] <- (col[j]-mean(col))/sd(col)
+    outliers <- append(outliers, if(abs(z[j]) > 4) j) }
+  cat("Index of outliers: ", outliers, "\n")
+  cat("Value of outliers: ", col[outliers], "\n")
+  cat("           Min, 1st, Med, Mean, 3rd, Max\n")
+  cat("Quartiles: ", summary(housetmp[,i]), "\n\n")
+}
+```
+
+### **ADD**: What to do with these outliers? Some of these variables are categorical so we will probably not take those "outliers" out. It is currently choosing outliers 4 standard deviations away from the mean, is that fine or should it be changed? 
+
+This could wait until the modeling stage.  When we use R to determine which predictors should be included, we can then individually assess their relationship with SalePrice to ensure that the outlier isn't the sole cause of the correlation.
+
+
+### Other Q?
+
+
+```{python}
+import lazypredict
+import pandas as pd
+
+#from lazypredict.Supervised import LazyClassifier
+from lazypredict.Supervised import LazyRegressor
+#from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+
+df = pd.read_csv('train.csv')
+list(df.columns)
+
+X = df.drop('SalePrice', axis='columns')
+y = df.SalePrice
+
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=.1,random_state =123)
+
+# classification:
+#clf = LazyClassifier(verbose=0,ignore_warnings=True, custom_metric=None)
+#models,predictions = clf.fit(X_train, X_test, y_train, y_test)
+#print(models)
+
+#Regression:
+reg = LazyRegressor(verbose=0, ignore_warnings=False, custom_metric=None)
+models, predictions = reg.fit(X_train, X_test, y_train, y_test)
+
+#print(models)
+#print(predictions)
+```
+
+>What years do we have the most data?
+
+```{r}
+count(house3, YrMoSold == "2010-07-01")
+
+house3 %>% count(YrSold)
+hist(house3$YrSold, breaks = 15)
+
+filter(house3, MoSold < 7) %>% count(YrSold)
+hist(filter(house3, MoSold < 7)$YrSold, breaks = 15)
+```
+
+The latest sales included in the dataset are in July 2010 (of which there are only 6 sales, compared to the tens of July sales in previous years, implying that data collection ended in early July), which will need to be considered when gleaning information from the distribution of sales across months and years.  This results in 2010 having roughly half the observations as previous years.  Looking at only the pre-July sales, though, reveals that 2010 was likely on track to be a normal year for number of sales.  2009 had the most sales and 2008 shows a dip, but the numbers are still consistent  across the years.
+
+```{r}
+hist(house3$MoSold, breaks = 30, ylim = c(0,250))
+
+no2010 <- filter(house3, YrSold < 2010)
+hist(no2010$MoSold, breaks = 30, ylim = c(0,250))
+```
+
+Removing the sales from 2010 changes the distribution of sales by month in that July now has the most sales, when previously June had the most.  Aside from this, the frequency of pre-August sales by month relative to each month does not appear to be significantly changed.  Whether or not to exclude 2010 data from the model can be explored post-EDA, but I anticipate it should be fine.
+
+>How does sale price vary over time? 
+
+```{r}
+plot(house3$YrSold,house3$SalePrice)
+
+no_out <- filter(house3, SalePrice < 500000)
+plot(no_out$YrSold,no_out$SalePrice)
+
+ggplot(data = no_out, aes(x = YrSold, y = SalePrice)) +
+  geom_jitter() +
+  geom_smooth(method='lm',se = TRUE)
+
+ggplot(data = no_out, aes(x = YrMoSold, y = SalePrice)) +
+  geom_point() +
+  geom_smooth(method='lm',se = TRUE)
+```
+
+SalePrice does not exhibit any peaks, valleys, upward, or downward slopes when modeled against YrSold or YrMoSold.
+
+```{r}
+hist(house3$YrMoSold,breaks = 60)
+
+plot(house3$MoSold,house3$SalePrice, ylim = c(0,775000))
+plot(no_out$MoSold,no_out$SalePrice, ylim = c(0,775000))
+
+avg_mo <- house3 %>% group_by(MoSold) %>% summarise(SalePrice = mean(SalePrice))
+avg_out <- no_out %>% group_by(MoSold) %>% summarise(SalePrice = mean(SalePrice))
+
+plot(avg_mo$MoSold,avg_mo$SalePrice, ylim = c(0,775000))
+plot(avg_out$MoSold,avg_out$SalePrice, ylim = c(0,775000))
+
+ggplot(data = house3, aes(x = MoSold, y = SalePrice)) +
+  geom_jitter() +
+  geom_smooth(method='lm',se = TRUE)
+```
+
+MoSold may have a minuscule effect on SalePrice.
+
+
+>How does the 2008 housing crash affect prices, does it at all?
+
+```{r}
+newhouse <- filter(house3, SaleType == "New")
+newhouse[,c(20,21,79)]
+
+(newhse <- filter(house3, YearBuilt == YearRemodAdd, SaleType == "New"))[,c(20,21,79)]
+
+hist(house3$YrSold, breaks = 15)
+hist(newhouse$YrSold,breaks = 15)
+hist(newhse$YrSold, breaks = 15, ylim = c(0,43))
+hist(filter(house3, YearBuilt != YearRemodAdd, SaleType == "New")$YrSold, breaks = 15, ylim = c(0,43))
+
+hist(house3$YearBuilt, breaks = 50)
+hist(filter(house3, YearBuilt > 1994)$YearBuilt, breaks = 15)
+```
+
+We saw earlier that SalePrice and YrSold aren't correlated, so we know the housing crash didn't affect prices (or at least, not the successful sales).  The crash also seems to not have heavily influenced the number of sales.  But it did influence the number of new houses being sold, which sees a significant decrease from 2007 to 2008.  When the market crashed, new homes stopped being built (and possibly remodeled too, according to the data), and thus there are fewer sales of "New" houses.
+Since SalePrice isn't affected, this won't play into our models, but it may be worth mentioning as an aside in the presentation.
+
+
+
+
