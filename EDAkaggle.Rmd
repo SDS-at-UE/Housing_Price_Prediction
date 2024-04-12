@@ -11,6 +11,7 @@ library(tidyverse)
 library(mice)
 library(xts)
 library(ggplot2)
+library(gridExtra)
 
 house <- read_csv("train.csv")
 ``` 
@@ -198,6 +199,20 @@ P: While this command runs, many of the variables are marked as "(nearly) multi-
 
 S: Since it is just a warning we can leave it for now and return to it later if we have time. 
 
+---
+Jeremiah's Note on Multillinearity: 
+
+Multicollinearity doesn't affect the model's predictions, but it affects the coefficients for the predictors.  This means that for the purpose of the Kaggle competition we don't need to worry about it, but for the presentation it should be addressed.  In assessing the presence of multicollinearity, Id was removed because it's irrelevant, Utilities was removed because lm() gave an error that suggested that some categorical predictors had only one factor level, which is simply not true, but removing Utilities fixes it somehow.  The rest were removed because they were aliases, meaning that they are very highly multicollinear (TotalBsmtSF is a linear transformation of two other predictors, for instance).  Once those are all removed, vif() actually gives results.  YrMoSold is obviously multicollinear with the two variables it's based on, and removing it also decreases their scores.  The only other high VIF (above 10, which corresponds to a R^2 of .9 for the variable modeled using all other predictors) is PoolArea, but unfortunately R doesn't conclude which variable(s) is/are causing this.
+
+```{r Jeremiah's Note on Multillinearity}
+train.df = subset(house3, select=-c(Id, Utilities, BsmtCond, BsmtFinType1, TotalBsmtSF, GrLivArea, GarageFinish, GarageQual, GarageCond, BldgType, Exterior2nd))
+viftest <- lm(SalePrice ~ ., train.df)
+#alias(viftest)$Complete
+vif(viftest)
+```
+
+---
+
 ```{r}
 set.seed(1)
 imphouse <- complete(imputed_house)
@@ -236,6 +251,11 @@ for (i in 1:length(housetmp)) {
 **ADD**: What to do with these outliers? Some of these variables are categorical variables so we will probably not take those "outliers" out. It is currently choosing outliers 5 standard deviations away from the mean, is that fine or should it be changed? 
 
 use par(c(2,2)) to create 4 boxplots to display more obvious outliers
+
+Answer by Jeremiah: This could wait until the modeling stage.  When we use R to determine which predictors should be included, we can then individually assess their relationship with SalePrice to ensure that the outlier isn't the sole cause of the correlation.
+
+What commands should we use "to determine which predictors should be included?" Will we use models that employ variable elimination or should we perform elimination ourselves using another command to be determined? 
+
 
 ---
 
@@ -290,7 +310,7 @@ ggplot( house, aes(x = BsmtFullBath, y =BsmtFinSF1 )) +
 ```
 
 ```{r}
-ggplot( house, aes(x = BsmtFinSF1,y =  GrLivArea)) +
+ggplot( house, aes(x = log(BsmtFinSF1),y =  GrLivArea)) +
   geom_point()
 ```
   
@@ -305,8 +325,7 @@ ggplot( house, aes(x = BsmtFinSF1,y =  GrLivArea)) +
   -How much impact does house size have on sales price?
   
 ```{r}
-library(gridExtra)
-p1 <- ggplot(house, aes(x=TotalBsmtSF,y=SalePrice)) +
+p1 <- ggplot(house, aes(x=log(scale(TotalBsmtSF)),y=SalePrice)) +
   geom_point()
 p2 <- ggplot(house, aes(x=LotFrontage,y=SalePrice)) +
   geom_point()
@@ -316,9 +335,14 @@ p4 <- ggplot(house, aes(x=`X2ndFlrSF`,y=SalePrice)) +
   geom_point()
 
 grid.arrange(p1, p2, p3, p4, ncol=2)
+
+ggplot(house, aes(x = (TotalBsmtSF + `1stFlrSF` + `2ndFlrSF`), y = SalePrice)) + 
+  geom_point()
 ```
   
   -How does sale price vary over time? 
+  
+Answered by Jeremiah
 
   -What years do we have the most data for? 
   
@@ -327,6 +351,8 @@ summary(house$YearBuilt)
 summary(house$YearRemodAdd)
 summary(house$YrSold)
 ```
+
+Answered by Jeremiah
   
   -How do sale price and number of houses in the data per year relate? 
 
@@ -345,9 +371,13 @@ plot(house$YrMoSold,house$SalePrice)
 <details>
   <summary>**Extra questions**</summary>
   
-  -Once finished, how similar is the Ames dataset?
+  -Once finished with everything else, how similar is the Ames dataset?
+  
+Answered by Jeremiah
   
   -How does the 2008 housing crash affect prices, does it at all?
+
+Answered by Jeremiah
   
   -Can we make our response categorical?
     
