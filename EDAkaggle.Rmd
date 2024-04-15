@@ -327,7 +327,7 @@ ggplot( house, aes(x = log(BsmtFinSF1),y =  GrLivArea)) +
 ```{r}
 p1 <- ggplot(house, aes(x=log(scale(TotalBsmtSF)),y=SalePrice)) +
   geom_point()
-p2 <- ggplot(house, aes(x=LotFrontage,y=SalePrice)) +
+p2 <- ggplot(house, aes(x=log(LotFrontage),y=SalePrice)) +
   geom_point()
 p3 <- ggplot(house, aes(x=log(scale(`X1stFlrSF`)),y=SalePrice)) +
   geom_point()
@@ -343,6 +343,10 @@ ggplot(house, aes(x = (TotalBsmtSF + `1stFlrSF` + `2ndFlrSF`), y = SalePrice)) +
   -How does sale price vary over time? 
   
 Answered by Jeremiah
+```{r}
+ggplot(house,aes(x=YrSold, y=SalePrice)) + 
+  geom_jitter()
+```
 
   -What years do we have the most data for? 
   
@@ -393,7 +397,9 @@ Answered by Jeremiah
   -What kinds of models would be best fit for our data?
   
   Using lazypredict in python, we may get a better idea of what the best model to use is.
-    RF, lasso, ridge, 
+    Dr. Khormali's lazypredict: RF, lasso larsic, ridge cv, lin reg, gradient boosting regression, bagging
+    Find 9-12 variables that are most important for user: 
+      
   
 </details>\
 \

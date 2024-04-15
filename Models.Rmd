@@ -1,0 +1,111 @@
+---
+title: "Models"
+author: "Gideon Wolf, Jeremiah Sagers"
+date: "4/15/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+### From ReadData.R
+library(tidyverse)
+library(mice)
+library(xts)
+library(ggplot2)
+library(glmnet)
+library(caret)
+library(lars)
+
+# Read in data, handle NAs
+house <- read.csv("train.csv")
+
+NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+for (i in NAtoNone) {
+  housetmp <- house
+  housetmp[i][is.na(housetmp[i])] <- "None"
+  house <- housetmp
+}
+house <- house[-1380,]
+
+house <- house %>% mutate_if(is.character, as.factor)
+house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
+
+YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
+YrMoSold <- as_date(YrMoSold)
+house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
+
+# Take out GarageYrBlt
+house <- house[-60]
+
+# Imputation
+numhouse <- select_if(house, is.numeric)
+imputed_house <- mice(numhouse, 
+                      m = 10,  
+                      method = 'pmm', 
+                      seed = 1)
+
+set.seed(1)
+imphouse <- complete(imputed_house)
+housetmp <- house
+s = 1
+for (i in names(imphouse)[2:length(names(imphouse))]) {
+  housetmp[i] <- imphouse[i]
+}
+house <- housetmp
+###
+```
+
+Working on making Linear Regression, Lasso, Ridge, 
+
+```{r}
+set.seed(66)
+training <- mutate(house, id = row_number())
+train <- sample_frac(training, .75)
+valid <- anti_join(training, train, by = 'id')
+train <- dplyr::select(train, -id)
+valid <- dplyr::select(valid, -id)
+
+x_train <- model.matrix(SalePrice~.-1, train)[,-81]
+y_train <- train[81]$SalePrice
+x_valid <- model.matrix(SalePrice~.-1, valid)[,-81]
+y_valid <- valid[81]$SalePrice
+```
+
+## Using GLMNet
+```{r}
+grid = 10^seq(10, -2, length = 100)
+
+glmlas <- glmnet(x_train,y_train, alpha=1, lambda = grid)
+
+cvlas <- cv.glmnet(x_train,y_train, alpha=1)
+minlam = cvlas$lambda.min
+minlam
+
+laspred <- predict(glmlas, s =minlam, newx = x_valid)
+mean((laspred - y_valid)^2)
+# predict(glmlas, type = "coefficients", s=minlam)
+```
+
+## Using Lars (Throws error for mode/s)
+```{r}
+## https://stats.stackexchange.com/questions/58531/using-lasso-from-lars-or-glmnet-package-in-r-for-variable-selection
+cv <- lars::cv.lars(x_train, y_train, plot.it = FALSE)
+  ideal_l1_ratio <- cv$index[which.max(cv$cv - cv$cv.error <= min(cv$cv))]
+  obj <- lars(x_train, y_train, type="lasso")
+  scaled_coefs <- scale(obj$beta, FALSE, 1 / obj$normx)
+  l1 <- apply(X = scaled_coefs, MARGIN = 1, FUN = function(x) sum(abs(x)))
+  coef(obj)[which.max(l1 / tail(l1, 1) > ideal_l1_ratio),]
+  
+p <- predict(obj, x_valid, "fit", mode = "norm")
+# Returns following error: how to make s in range? 
+# Error in predict.lars(obj, x_valid, "fit", mode = "norm") : 
+# Argument s out of range
+
+```
+
+```{r}
+
+```
+
+
