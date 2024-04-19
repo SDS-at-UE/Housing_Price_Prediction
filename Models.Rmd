@@ -54,9 +54,37 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 }
 house <- housetmp
 ###
+house$Id <- NULL
 ```
 
-Working on making Lasso, Ridge, and RF
+# Outliers
+```{r}
+housetmp <- select_if(house, is.numeric)
+housetmp1 <- house
+for (i in 1:length(housetmp)) {
+  print(names(housetmp[i]))
+  col <- housetmp[,i]
+  z <- vector("numeric", length = length(col))
+  outliers <- vector("numeric")
+  for (j in 1:length(col)) {
+    z[j] <- (col[j]-mean(col))/sd(col)
+    outliers <- append(outliers, if(abs(z[j]) > 7) j) 
+    outliers
+    if (abs(z[j]) > 7) {
+      housetmp1 <- housetmp1[-j,]
+      cat("Row",j,"was taken out.\n")
+      }
+    }
+  cat("For", names(housetmp[i]), ", the outliers taken out were index", outliers, "\n")
+}
+house <- housetmp1
+# 
+# for (i in names(housetmp)[2:length(names(housetmp))]) {
+#   housetmp1[i] <- housetmp[i]
+# }
+# housetmp <- housetmp1
+```
+
 
 ```{r}
 set.seed(66)
@@ -66,11 +94,14 @@ test <- anti_join(training, train, by = 'id')
 train <- dplyr::select(train, -id)
 test <- dplyr::select(test, -id)
 
-x_train <- model.matrix(SalePrice~.-1, train)[,-81]
-y_train <- train[81]$SalePrice
-x_test <- model.matrix(SalePrice~.-1, test)[,-81]
-y_test <- test[81]$SalePrice
+x_train <- model.matrix(SalePrice~.-1, train)[,-80]
+y_train <- train[80]$SalePrice
+x_test <- model.matrix(SalePrice~.-1, test)[,-80]
+y_test <- test[80]$SalePrice
 ```
+
+
+Working on making Lasso, Ridge, and RF
 
 ## Using GLMNet to find Lasso CV model
 ```{r}
@@ -111,6 +142,9 @@ AICc
 
 ## Using GLMNet to find Ridge Regression Model
 ```{r}
+
+# use variable selection to get subset of variables to find another model
+
 rid <- cv.glmnet(x_train,y_train, alpha = 0, lambda = exp(seq(from = 5,to = 15,length = 100)))
 plot(rid, xlim=c(5,15))
 minlam = rid$lambda.min
@@ -151,14 +185,87 @@ AICc
 rf <- randomForest(SalePrice ~ ., 
                            data = train,
                            mtry = 9,
-                           ntree = 100,
+                           ntree = 200,
                            importance = TRUE)
-
+i <- importance(rf, scale=TRUE)
+out <- names(which(i[,1] > 5))
+out
 rfpred  <-  predict(rf, newdata = test)
-print("MSE = ")
-mean((y_test - rfpred)^2)
+cat("MSE = ",mean((y_test - rfpred)^2))
 plot(rf)
 ```
+
+# EXPERIMENTING WITH TAKING OUT OUTLIERS AND VARIABLE SELECTION
+
+
+
+```{r test}
+a <- c()
+for (i in out) {
+     a <- append(a, grep(i, names(house)))
+ }
+house <- house[,-a]
+
+set.seed(66)
+training <- mutate(house, id = row_number())
+train <- sample_frac(training, .75)
+test <- anti_join(training, train, by = 'id')
+train <- dplyr::select(train, -id)
+test <- dplyr::select(test, -id)
+
+x_train <- model.matrix(SalePrice~.-1, train)[,-length(train)]
+y_train <- train[length(train)]$SalePrice
+x_test <- model.matrix(SalePrice~.-1, test)[,-length(test)]
+y_test <- test[length(test)]$SalePrice
+
+rf <- randomForest(SalePrice ~ ., 
+                           data = house,
+                           mtry = 9,
+                           ntree = 200,
+                           importance = TRUE)
+i <- importance(rf, scale=TRUE)
+out <- names(which(i[,1] > 5))
+out
+rfpred  <-  predict(rf, newdata = test)
+cat("MSE = ",mean((y_test - rfpred)^2))
+plot(rf)
+
+
+cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 10)
+plot(cv, xlim=c(5,11))
+minlam = cv$lambda.min
+print("Lambda: ")
+minlam
+cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
+
+cvpred <- predict(cvlas, s =minlam, newx = x_test)
+print("MSE: ")
+mean((cvpred - y_test)^2)
+
+# Dr. Khormali found: https://drbeane.github.io/_pages/courses/mth345/24%20-%20Lasso%20and%20Ridge.nb.html
+# for cv lasso
+y_train_pred_lasso <- predict(cvlas, x_train)
+sse <- sum((y_train - y_train_pred_lasso)^2)
+sst <- sum((y_train - mean(y_train))^2)
+training_rsq <- 1 - sse / sst
+y_test_pred_lasso <- cvpred
+sse <- sum((y_test - y_test_pred_lasso)^2)
+sst <- sum((y_test - mean(y_test))^2)
+testing_rsq <- 1 - sse / sst
+lasso_rsq <- c(training_rsq, testing_rsq)
+names(lasso_rsq) <- c('Training Rsq', 'Testing Rsq')
+lasso_rsq
+
+# https://stats.stackexchange.com/questions/25817/is-it-possible-to-calculate-aic-and-bic-for-lasso-regression-models
+fit <- cvlas
+tLL <- fit$nulldev - deviance(fit)
+k <- fit$df
+n <- fit$nobs
+AICc <- -tLL+2*k+2*k*(k+1)/(n-k-1)
+print("AIC: ")
+AICc
+```
+
 
 ```{r}
 mean((y_test - cvpred)^2)
