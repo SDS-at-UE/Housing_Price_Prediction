@@ -11,11 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ### From ReadData.R
 library(tidyverse)
 library(mice)
-library(xts)
 library(ggplot2)
 library(glmnet)
 library(caret)
-library(lars)
+library(tree)
+library(randomForest)
 
 # Read in data, handle NAs
 house <- read.csv("train.csv")
@@ -56,42 +56,37 @@ house <- housetmp
 ###
 ```
 
-Working on making Linear Regression, Lasso, Ridge, 
+Working on making Lasso, Ridge, and RF
 
 ```{r}
 set.seed(66)
 training <- mutate(house, id = row_number())
 train <- sample_frac(training, .75)
-valid <- anti_join(training, train, by = 'id')
+test <- anti_join(training, train, by = 'id')
 train <- dplyr::select(train, -id)
-valid <- dplyr::select(valid, -id)
+test <- dplyr::select(test, -id)
 
 x_train <- model.matrix(SalePrice~.-1, train)[,-81]
 y_train <- train[81]$SalePrice
-x_test <- model.matrix(SalePrice~.-1, valid)[,-81]
-y_test <- valid[81]$SalePrice
+x_test <- model.matrix(SalePrice~.-1, test)[,-81]
+y_test <- test[81]$SalePrice
 ```
 
-## Using GLMNet
+## Using GLMNet to find Lasso CV model
 ```{r}
-grid = 10^seq(10, -2, length = 100)
-
-cvlas <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 20)
-minlam = cvlas$lambda.min
+cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 20)
+plot(cv, xlim=c(5,11))
+minlam = cv$lambda.min
+print("Lambda: ")
 minlam
+cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
 
-glmlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = grid) # lasso regression, when lambda = minlam, training rsq is reasonable (i.e. not -49), but plot(glmlas) looking at lambda does not work.
-
-laspred <- predict(glmlas, s =minlam, newx = x_test)
 cvpred <- predict(cvlas, s =minlam, newx = x_test)
-mean((laspred - y_test)^2)
+print("MSE: ")
 mean((cvpred - y_test)^2)
-# predict(glmlas, type = "coefficients", s=minlam)
-plot(glmlas,xvar="lambda",label=TRUE)
-plot(glmlas)
-plot(cvlas)
 
 # Dr. Khormali found: https://drbeane.github.io/_pages/courses/mth345/24%20-%20Lasso%20and%20Ridge.nb.html
+# for cv lasso
 y_train_pred_lasso <- predict(cvlas, x_train)
 sse <- sum((y_train - y_train_pred_lasso)^2)
 sst <- sum((y_train - mean(y_train))^2)
@@ -101,52 +96,68 @@ sse <- sum((y_test - y_test_pred_lasso)^2)
 sst <- sum((y_test - mean(y_test))^2)
 testing_rsq <- 1 - sse / sst
 lasso_rsq <- c(training_rsq, testing_rsq)
-names(lasso_rsq) <- c('Training', 'Testing')
-lasso_rsq
-
-
-y_train_pred_lasso <- predict(glmlas, x_train)
-sse <- sum((y_train - y_train_pred_lasso)^2)
-sst <- sum((y_train - mean(y_train))^2)
-training_rsq <- 1 - sse / sst
-y_test_pred_lasso <- laspred
-sse <- sum((y_test - y_test_pred_lasso)^2)
-sst <- sum((y_test - mean(y_test))^2)
-testing_rsq <- 1 - sse / sst
-lasso_rsq <- c(training_rsq, testing_rsq)
-names(lasso_rsq) <- c('Training', 'Testing')
+names(lasso_rsq) <- c('Training Rsq', 'Testing Rsq')
 lasso_rsq
 
 # https://stats.stackexchange.com/questions/25817/is-it-possible-to-calculate-aic-and-bic-for-lasso-regression-models
-fit <- glmlas
+fit <- cvlas
 tLL <- fit$nulldev - deviance(fit)
 k <- fit$df
 n <- fit$nobs
 AICc <- -tLL+2*k+2*k*(k+1)/(n-k-1)
-# AICc
-BIC<-log(n)*k - tLL
-# BIC
+print("AIC: ")
+AICc
 ```
 
-<!-- ## Using Lars (Throws error for mode/s) -->
-<!-- ```{r} -->
-<!-- ## https://stats.stackexchange.com/questions/58531/using-lasso-from-lars-or-glmnet-package-in-r-for-variable-selection -->
-<!-- cv <- lars::cv.lars(x_train, y_train, plot.it = FALSE) -->
-<!--   ideal_l1_ratio <- cv$index[which.max(cv$cv - cv$cv.error <= min(cv$cv))] -->
-<!--   obj <- lars(x_train, y_train, type="lasso") -->
-<!--   scaled_coefs <- scale(obj$beta, FALSE, 1 / obj$normx) -->
-<!--   l1 <- apply(X = scaled_coefs, MARGIN = 1, FUN = function(x) sum(abs(x))) -->
-<!--   coef(obj)[which.max(l1 / tail(l1, 1) > ideal_l1_ratio),] -->
+## Using GLMNet to find Ridge Regression Model
+```{r}
+rid <- cv.glmnet(x_train,y_train, alpha = 0, lambda = exp(seq(from = 5,to = 15,length = 100)))
+plot(rid, xlim=c(5,15))
+minlam = rid$lambda.min
+print("Lambda: ")
+minlam
+ridge <- glmnet(x_train,y_train,family = "gaussian", alpha=0, lambda = minlam)
 
-<!-- p <- predict(obj, x_test, "fit", mode = "norm") -->
-<!-- # Returns following error: how to make s in range?  -->
-<!-- # Error in predict.lars(obj, x_test, "fit", mode = "norm") :  -->
-<!-- # Argument s out of range -->
+ridpred <- predict(ridge, s =minlam, newx = x_test)
+print("MSE: ")
+mean((ridpred - y_test)^2)
 
-<!-- ``` -->
+# Dr. Khormali found: https://drbeane.github.io/_pages/courses/mth345/24%20-%20Lasso%20and%20Ridge.nb.html
+# for cv lasso
+y_train_pred_lasso <- predict(ridge, x_train)
+sse <- sum((y_train - y_train_pred_lasso)^2)
+sst <- sum((y_train - mean(y_train))^2)
+training_rsq <- 1 - sse / sst
+y_test_pred_lasso <- ridpred
+sse <- sum((y_test - y_test_pred_lasso)^2)
+sst <- sum((y_test - mean(y_test))^2)
+testing_rsq <- 1 - sse / sst
+lasso_rsq <- c(training_rsq, testing_rsq)
+names(lasso_rsq) <- c('Training Rsq', 'Testing Rsq')
+lasso_rsq
+
+# https://stats.stackexchange.com/questions/25817/is-it-possible-to-calculate-aic-and-bic-for-lasso-regression-models
+fit <- ridge
+tLL <- fit$nulldev - deviance(fit)
+k <- fit$df
+n <- fit$nobs
+AICc <- -tLL+2*k+2*k*(k+1)/(n-k-1)
+print("AIC: ")
+AICc
+```
+
 
 ```{r}
+rf <- randomForest(SalePrice ~ ., 
+                           data = train,
+                           mtry = 9,
+                           ntree = 100,
+                           importance = TRUE)
 
+rfpred  <-  predict(rf, newdata = test)
+print("MSE = ")
+mean((y_test - rfpred)^2)
+plot(rf)
 ```
 
 
