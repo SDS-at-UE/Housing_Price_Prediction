@@ -13,36 +13,144 @@ library(data.table)
 ```
 
 ```{r, include = FALSE, message=FALSE}
+# Kaggle competition data
 train <- read_csv("train.csv")
 train <- train %>% mutate_if(is.character, as.factor)
 train <- train %>% mutate_at(c('MSSubClass','MoSold'), as_factor)
 test <- read_csv("test.csv")
 test <- test %>% mutate_if(is.character, as.factor)
 test <- test %>% mutate_at(c('MSSubClass','MoSold'), as_factor)
-noprice <- rbind(train[-81], test)
 
+noprice <- rbind(train[-81], test) # combine train and test datasets
+
+# replace NAs with actual values
+for (col in names(noprice)) {
+  if (is.numeric(noprice[[col]])) {
+    noprice[[col]][is.na(noprice[[col]])] <- 0
+  } else if (is.factor(noprice[[col]])) {
+    noprice[[col]] <- as.character(noprice[[col]])
+    noprice[[col]][is.na(noprice[[col]])] <- "N/A"
+    noprice[[col]] <- as.factor(noprice[[col]])
+  }
+}
+
+# Complete Ames housing data
 house2 <- read_csv("AmesHousing.csv")
 house2 <- house2 %>% mutate_if(is.character, as.factor)
 house2 <- house2 %>% mutate_at(c('MS SubClass','Mo Sold'), as_factor)
+
 house2 <- house2[-2] # remove variable not present in train/test
-housenoprice <- house2[-81]
-housenoprice <- housenoprice %>% filter(Order < 2920) # set dimensions equal to "noprice" for all_equal() to work
+housenoprice <- house2[-81] # remove response variable
 
 # make column names identical to "noprice"
 names(housenoprice) <- gsub(" ", "", names(housenoprice))
 names(housenoprice)[names(housenoprice) == 'Order'] <- 'Id'
 names(housenoprice)[names(housenoprice) == 'YearRemod/Add'] <- 'YearRemodAdd'
-housenoprice <- housenoprice %>% mutate(MSSubClass = as.double(MSSubClass))
 
-#rbind(filter(housenoprice, LotArea == 31770)[-1],filter(noprice, LotArea == 31770)[-1])
-#filter(noprice, LotArea == 31770)
-#noprice[172,]
-#housenoprice %>% filter(`Lot Area` == 31770)
-#isTRUE(noprice[172,2:80] == housenoprice[1,2:80])
-#noprice[172,2:80] == housenoprice[1,2:80]
-all_equal(housenoprice[-1], noprice[-1], ignore_row_order = TRUE)
+for (col in names(housenoprice)) {
+  if (is.numeric(housenoprice[[col]])) {
+    housenoprice[[col]][is.na(housenoprice[[col]])] <- 0
+  } else if (is.factor(housenoprice[[col]])) {
+    housenoprice[[col]] <- as.character(housenoprice[[col]])
+    housenoprice[[col]][is.na(housenoprice[[col]])] <- "N/A"
+    housenoprice[[col]] <- as.factor(housenoprice[[col]])
+  }
+}
+
+# Define replacement mappings
+replacement_map <- c(20, 30, 40, 45, 50, 60, 70, 75, 80, 85, 90, 120, 150, 160, 180, 190)
+
+# Replace factor levels using the mapping
+housenoprice$MSSubClass <- as.factor(replacement_map[housenoprice$MSSubClass])
+
+align_factor_levels <- function(df1, df2, column_name) {
+    # Combine the factor levels from both columns
+    combined_levels <- union(levels(df1[[column_name]]), levels(df2[[column_name]]))
+    
+    # Re-factor the columns with the combined levels
+    df1[[column_name]] <- factor(df1[[column_name]], levels = combined_levels)
+    df2[[column_name]] <- factor(df2[[column_name]], levels = combined_levels)
+    
+    return(list(df1 = df1, df2 = df2))
+}
+
+factor_columns <- names(noprice)[sapply(noprice, is.factor)]  # Get factor columns
+
+for (col in factor_columns) {
+    result <- align_factor_levels(noprice, housenoprice, col)
+    noprice <- result$df1
+    housenoprice <- result$df2
+}
 ```
 
-I don't remember how I got all_equal to work (or if I used a different function), but I copied the output below:
-[1] "- Rows in x but not in y: 107, 108, 211, 576, 946, 1014, 1184, 1408, 1491, 1554, 1555, 1557, 1611, 1858, 1941, 2044, 2070, 2090, 2137, 2181, 2257, 2279, 2299, 2519, 2520, 2521, 2522, 2789, 2893, 2904\n- Rows in y but not in x: 296, 455, 562, 909, 941, 1435, 1556, 1916, 1946, 2041, 2152, 2186, 2217, 2218, 2219, 2251, 2421, 2474, 2490, 2504, 2525, 2550, 2600, 2611, 2905, 2915, 2916, 2917, 2918, 2919\n"
+```{r}
+# Find rows in Kaggle competition dataset that aren't in Ames dataset
+df1_list <- lapply(seq_len(nrow(noprice)), function(i) noprice[i, 2:80, drop = FALSE])
+
+matching_indices <- integer(nrow(noprice))
+
+for (i in seq_along(df1_list)) {
+    matches <- inner_join(housenoprice[2:80], df1_list[[i]], by = names(df1_list[[i]]))
+    if (nrow(matches) > 0) {
+        matching_indices[i] <- as.integer(rownames(matches))
+    } else {
+        matching_indices[i] <- 0
+    }
+}
+
+which(matching_indices == 0)
+```
+
+```{r}
+noprice[2525,]
+filter(housenoprice, LotArea == noprice[2611,]$LotArea)
+
+noprice[2905,which(noprice[2905,2:80] != filter(housenoprice, Id == 2904)[2:80]) + 1]
+housenoprice[filter(housenoprice, Id == 2904)$Id,which(noprice[2905,2:80] != filter(housenoprice, Id == 2904)[2:80]) + 1]
+```
+
+1556: Ames has KitchenQual = Po where Kaggle has NA                             :211
+1916: Ames has MSZoning = I (all) and Utilities = NoSewr instead of NA          :946
+1946: Utilities = NoSewr instead of NA                                          :1014
+2041: BsmtCond = Ex instead of NA                                               :1184
+2152: Exterior1st, Exterior2nd = PreCast instead of NA                          :1408
+2186: BsmtCond = Ex instead of NA                                               :1491
+2217: MSZoning = A (agr) and Functional = Sal instead of NA                     :1554
+2218: BsmtQual = Po instead of NA                                               :1555
+2219: BsmtQual = Po instead of NA                                               :1557
+2251: MSZoning = I (all) instead of NA                                          :1611
+2421: PoolQC = TA instead of NA                                                 :1941
+2474: Functional = Sal instead of NA                                            :2044
+2490: SaleType = VWD instead of NA                                              :2070
+2504: PoolQC = TA instead of NA                                                 :2090
+2525: BsmtCond = Ex instead of NA                                               :2137
+2550: MiscFeature = Elev instead of NA                                          :2181
+2600: PoolQC = TA instead of NA                                                 :2279
+2611: MasVnrType = CBlock instead of NA                                         :2299
+2905: MSZoning = A (agr) instead of NA                                          :2904
+
+```{r}
+# Find rows in Ames that aren't in Kaggle
+df_list <- lapply(seq_len(nrow(housenoprice)), function(i) housenoprice[i, 2:80, drop = FALSE])
+
+matching_indices2 <- integer(nrow(housenoprice))
+
+for (i in seq_along(df_list)) {
+    matches <- inner_join(noprice[2:80], df_list[[i]], by = names(df_list[[i]]))
+    if (nrow(matches) > 0) {
+        matching_indices2[i] <- as.integer(rownames(matches))
+    } else {
+        matching_indices2[i] <- 0
+    }
+}
+which(matching_indices2 == 0)
+```
+
+```{r}
+housenoprice[c(107, 108, 576, 1858, 2257, 2519, 2520, 2521, 2522, 2789, 2893),]
+filter(noprice, LotArea == housenoprice[c(107, 108, 576, 1858, 2257, 2519, 2520, 2521, 2522, 2789, 2893),]$LotArea)
+```
+
+107, 108, 576, 1858, 2257, 2519, 2520, 2521, 2522, 2789, and 2893 are not present in the Kaggle competition dataset.
+
 
