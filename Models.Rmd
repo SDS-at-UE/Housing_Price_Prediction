@@ -160,4 +160,12 @@ mean((y_test - rfpred)^2)
 plot(rf)
 ```
 
+```{r}
+mean((y_test - cvpred)^2)
+mean((y_test - ridpred)^2)
+mean((y_test - rfpred)^2)
+```
+
+
+
 
