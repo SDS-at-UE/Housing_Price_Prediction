@@ -1,0 +1,123 @@
+---
+title: "XGBoost"
+author: "Jeremiah Sagers"
+date: "2024-04-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+### From ReadData.R
+library(tidyverse)
+library(mice)
+library(xts)
+library(ggplot2)
+library(caret)
+library(lars)
+library(xgboost)
+library(data.table)
+library(MASS)
+library(Matrix)
+
+# Read in data, handle NAs
+house4 <- read.csv("train.csv")
+test4 <- read.csv("test.csv")
+head(test4)
+NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+for (i in NAtoNone) {
+  house4tmp <- house4
+  house4tmp[i][is.na(house4tmp[i])] <- "None"
+  house4 <- house4tmp
+}
+house4 <- house4[-1380,]
+
+house4 <- house4 %>% mutate_if(is.character, as.factor)
+house4 <- house4 %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
+
+YrMoSold <- do.call(paste, c(sep='',list(house4$YrSold),list(rep("-", times = length(house4$YrSold))),list(house4$MoSold),list(rep("-01", times = length(house4$YrSold)))))
+YrMoSold <- as_date(YrMoSold)
+house4 <- as.data.frame(append(house4, list(YrMoSold = YrMoSold), after = 78))
+
+# Take out GarageYrBlt
+house4 <- house4[-60]
+
+# Imputation
+numhouse4 <- select_if(house4, is.numeric)
+imputed_house4 <- mice(numhouse4, 
+                      m = 10,  
+                      method = 'pmm', 
+                      seed = 1)
+
+set.seed(1)
+imphouse4 <- complete(imputed_house4)
+house4tmp <- house4
+s = 1
+for (i in names(imphouse4)[2:length(names(imphouse4))]) {
+  house4tmp[i] <- imphouse4[i]
+}
+house4 <- house4tmp
+```
+
+```{r}
+set.seed(66)
+training3 <- mutate(house3, id = row_number())
+train3 <- sample_frac(training3, .75)
+valid3 <- anti_join(training3, train3, by = 'id')
+train3 <- dplyr::select(train3, -c(id,Id))
+valid3 <- dplyr::select(valid3, -c(id,Id))
+```
+
+```{r}
+xgtable <- data.table(train3)
+sparse_matrix <- sparse.model.matrix(SalePrice ~ ., data = xgtable)[, -1]
+output_vector <- xgtable$SalePrice
+xgtest <- data.table(valid3)
+sparse_test <- sparse.model.matrix(SalePrice ~ ., data = xgtest)[, -1]
+
+bst <- xgboost(data = sparse_matrix, label = output_vector, max_depth = 2,
+               eta = 0.5, nrounds = 20)
+pred <- predict(bst, sparse_test)
+#pred
+((mean((pred - xgtest$SalePrice)^2)))
+```
+
+```{r}
+models <- vector(mode = "list", length = 400)
+mses <- rep(0, times = 400)
+index <- 1
+
+for (depth in 1:20) {
+  for (rounds in 1:20) {
+    models[[index]] <- xgboost(data = sparse_matrix, label = output_vector, max_depth = depth,
+               eta = 0.5, nrounds = rounds, verbose = 0)
+    mses[index] <- mean((predict(models[[index]], sparse_test) - xgtest$SalePrice)^2)
+    print(index)
+    
+    index <- index + 1
+  }
+}
+
+#mses
+min(mses)
+which(mses == min(mses))
+#models[[68]]
+
+for (eta in 1:10) {
+  mod <- xgboost(data = sparse_matrix, label = output_vector, max_depth = 2,
+               eta = 0.1*eta, nthread = 2, nrounds = 10, verbose = 0)
+  print(mean((predict(mod, sparse_test) - xgtest$SalePrice)^2))
+}
+
+mse2s <- rep(0, times = 100)
+
+for (rounds in 1:100) {
+  modl <- xgboost(data = sparse_matrix, label = output_vector, max_depth = 2,
+               eta = 0.5, nthread = 2, nrounds = rounds, verbose = 0)
+  mse2s[rounds] <- mean((predict(modl, sparse_test) - xgtest$SalePrice)^2)
+  print(round)
+}
+
+
+```
+
