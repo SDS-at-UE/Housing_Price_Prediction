@@ -6,8 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
+knitr::opts_chunk$set(include = FALSE)
 ### From ReadData.R
 library(tidyverse)
 library(mice)
@@ -61,28 +60,22 @@ house$Id <- NULL
 ```{r}
 housetmp <- select_if(house, is.numeric)
 housetmp1 <- house
+outliers <- vector("numeric")
 for (i in 1:length(housetmp)) {
-  print(names(housetmp[i]))
   col <- housetmp[,i]
   z <- vector("numeric", length = length(col))
-  outliers <- vector("numeric")
   for (j in 1:length(col)) {
     z[j] <- (col[j]-mean(col))/sd(col)
-    outliers <- append(outliers, if(abs(z[j]) > 7) j) 
-    outliers
-    if (abs(z[j]) > 7) {
+    outliers <- append(outliers, if(abs(z[j]) > 3) abs(z[j])) 
+    if (abs(z[j]) > 3) {
       housetmp1 <- housetmp1[-j,]
-      cat("Row",j,"was taken out.\n")
+      #cat("Row",j,"was removed because",names(housetmp)[i],"was",z[j], "standard deviations from the standard normal mean of 0.\n")
       }
     }
-  cat("For", names(housetmp[i]), ", the outliers taken out were index", outliers, "\n")
+  
 }
+hist(outliers, breaks = 20)
 house <- housetmp1
-# 
-# for (i in names(housetmp)[2:length(names(housetmp))]) {
-#   housetmp1[i] <- housetmp[i]
-# }
-# housetmp <- housetmp1
 ```
 
 
@@ -108,6 +101,7 @@ Working on making Lasso, Ridge, and RF
 cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 20)
 plot(cv, xlim=c(5,11))
 minlam = cv$lambda.min
+print("Lasso CV")
 print("Lambda: ")
 minlam
 cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
@@ -148,6 +142,7 @@ AICc
 rid <- cv.glmnet(x_train,y_train, alpha = 0, lambda = exp(seq(from = 5,to = 15,length = 100)))
 plot(rid, xlim=c(5,15))
 minlam = rid$lambda.min
+print("Ridge Regression")
 print("Lambda: ")
 minlam
 ridge <- glmnet(x_train,y_train,family = "gaussian", alpha=0, lambda = minlam)
@@ -218,59 +213,23 @@ y_train <- train[length(train)]$SalePrice
 x_test <- model.matrix(SalePrice~.-1, test)[,-length(test)]
 y_test <- test[length(test)]$SalePrice
 
-rf <- randomForest(SalePrice ~ ., 
+rfvs <- randomForest(SalePrice ~ ., 
                            data = house,
                            mtry = 9,
-                           ntree = 200,
+                           ntree = 300,
                            importance = TRUE)
-i <- importance(rf, scale=TRUE)
-out <- names(which(i[,1] > 5))
-out
-rfpred  <-  predict(rf, newdata = test)
-cat("MSE = ",mean((y_test - rfpred)^2))
-plot(rf)
-
-
-cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 10)
-plot(cv, xlim=c(5,11))
-minlam = cv$lambda.min
-print("Lambda: ")
-minlam
-cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
-
-cvpred <- predict(cvlas, s =minlam, newx = x_test)
-print("MSE: ")
-mean((cvpred - y_test)^2)
-
-# Dr. Khormali found: https://drbeane.github.io/_pages/courses/mth345/24%20-%20Lasso%20and%20Ridge.nb.html
-# for cv lasso
-y_train_pred_lasso <- predict(cvlas, x_train)
-sse <- sum((y_train - y_train_pred_lasso)^2)
-sst <- sum((y_train - mean(y_train))^2)
-training_rsq <- 1 - sse / sst
-y_test_pred_lasso <- cvpred
-sse <- sum((y_test - y_test_pred_lasso)^2)
-sst <- sum((y_test - mean(y_test))^2)
-testing_rsq <- 1 - sse / sst
-lasso_rsq <- c(training_rsq, testing_rsq)
-names(lasso_rsq) <- c('Training Rsq', 'Testing Rsq')
-lasso_rsq
-
-# https://stats.stackexchange.com/questions/25817/is-it-possible-to-calculate-aic-and-bic-for-lasso-regression-models
-fit <- cvlas
-tLL <- fit$nulldev - deviance(fit)
-k <- fit$df
-n <- fit$nobs
-AICc <- -tLL+2*k+2*k*(k+1)/(n-k-1)
-print("AIC: ")
-AICc
+importance(rfvs, scale=TRUE)
+rfpredvs  <-  predict(rfvs, newdata = test)
+cat("MSE = ",mean((y_test - rfpredvs)^2))
+plot(rfvs)
 ```
 
 
 ```{r}
-mean((y_test - cvpred)^2)
 mean((y_test - ridpred)^2)
+mean((y_test - cvpred)^2)
 mean((y_test - rfpred)^2)
+mean((y_test - rfpredvs)^2)
 ```
 
 
