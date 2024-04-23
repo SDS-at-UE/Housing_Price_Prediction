@@ -153,7 +153,6 @@ rf <- randomForest(SalePrice ~ .,
                            mtry = 9,
                            ntree = 100,
                            importance = TRUE)
-
 rfpred  <-  predict(rf, newdata = test)
 print("MSE = ")
 mean((y_test - rfpred)^2)
