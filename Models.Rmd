@@ -1,13 +1,12 @@
 ---
 title: "Models"
-author: "Gideon Wolf, Jeremiah Sagers"
+author: "Gideon Wolf"
 date: "4/15/2024"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
+knitr::opts_chunk$set(include = FALSE)
 ### From ReadData.R
 library(tidyverse)
 library(mice)
@@ -16,11 +15,20 @@ library(glmnet)
 library(caret)
 library(tree)
 library(randomForest)
+library(missMethods)
+library(leaps)
+library(moments)
 
 # Read in data, handle NAs
-house <- read.csv("train.csv")
+housetrain <- read.csv("train.csv")
+housetest <- read.csv("test.csv")
+housetest$SalePrice <- NA
 
-NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+house <- rbind(housetrain, housetest)
+#ggplot(house) + 
+#  geom_bar(aes(x=is.na(house)))
+
+NAtoNone <- c(2,3,7,9,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
 for (i in NAtoNone) {
   housetmp <- house
   housetmp[i][is.na(housetmp[i])] <- "None"
@@ -28,9 +36,13 @@ for (i in NAtoNone) {
 }
 house <- house[-1380,]
 
-house <- house %>% mutate_if(is.character, as.factor)
-house <- house %>% mutate_at(c('MSSubClass','MoSold'), as_factor) 
+# house$Utilities <- factor(house$Utilities, levels = c("NoSeWa", "None", "AllPub"))
+# house$MSZoning <- factor(house$MSZoning, levels = c("C (all)","FV","RH","RL","RM","None"))
 
+house <- house %>% mutate_if(is.character, as.factor)
+house <- house %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor) 
+
+# Imputation
 YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
 YrMoSold <- as_date(YrMoSold)
 house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
@@ -38,13 +50,15 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
 # Take out GarageYrBlt
 house <- house[-60]
 
-# Imputation
 numhouse <- select_if(house, is.numeric)
-imputed_house <- mice(numhouse, 
-                      m = 10,  
-                      method = 'pmm', 
+numhouse <- numhouse[,-length(numhouse)]
+imputed_house <- mice(numhouse,
+                      m = 5,
+                      method = 'pmm',
                       seed = 1)
 
+#imputed_house <- impute_median(numhouse)
+#house <- imputed_house
 set.seed(1)
 imphouse <- complete(imputed_house)
 housetmp <- house
@@ -54,9 +68,92 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 }
 house <- housetmp
 ###
+house$Id <- NULL
+testing <- house[1461:2918,]
+house <- house[1:1460,]
 ```
 
-Working on making Lasso, Ridge, and RF
+
+
+
+# Outliers
+```{r}
+# housetmp <- select_if(house, is.numeric)
+# housetmp1 <- house
+# outliers <- vector("numeric")
+# for (i in 1:length(housetmp)) {
+#   col <- housetmp[,i]
+#   z <- vector("numeric", length = length(col))
+#   for (j in 1:length(col)) {
+#     z[j] <- (col[j]-mean(col))/sd(col)
+#     outliers <- append(outliers, if(abs(z[j]) > 3) abs(z[j])) 
+#     if (abs(z[j]) > 3) {
+#       housetmp1 <- housetmp1[-j,]
+#       #cat("Row",j,"was removed because",names(housetmp)[i],"was",z[j], "standard deviations from the standard normal mean of 0.\n")
+#       }
+#     }
+# }
+# hist(outliers, breaks = 20)
+# house <- housetmp1
+
+lows <- c()
+colnaml <- c()
+colnamh <- c()
+highs <- c()
+rownout <- c()
+
+housetmp <- select_if(house, is.numeric)
+housetmp <- housetmp[]
+for (i in 1:(length(housetmp)-1)) {
+  column <- housetmp[[i]]
+  head(column)
+  p <- quantile(column, prob=c(.25,.5,.75))
+  IQR <- p[3]-p[1]
+  Q1 <- p[1]
+  Q3 <- p[3]
+  if (sum(column < (Q1-1.5*IQR))) {
+    colnaml <- append(colnaml, names(housetmp)[i])
+    lows <- append(lows, sum(column < (Q1-1.5*IQR)))
+    rownout <- append(rownout, which(column < (Q1-1.5*IQR)))
+  }
+  if (sum(column > (Q3+1.5*IQR))) {
+    colnamh <- append(colnamh, names(housetmp)[i])
+    highs <- append(highs, sum(column > (Q3+1.5*IQR)))
+    rownout <- append(rownout, which(column > (Q3+1.5*IQR)))
+  }
+}
+colnaml
+colnamh
+l <- data.frame(colnaml, lows) 
+l <- rename(l, colnam = colnaml)
+h <- data.frame(colnamh, highs)
+h <- rename(h, colnam = colnamh)
+outs <- merge(l, h, by='colnam', all=TRUE)
+skews <- c()
+for (i in 1:nrow(outs)) {
+   g <- grep(outs$colnam[i], names(housetmp))
+   skews <- append(skews, skewness(housetmp[g]))
+}
+outs$skewness <- skews
+outs_sort <- outs[order(outs$skewness, decreasing = TRUE),] 
+o <- rmarkdown::paged_table(outs_sort)
+o
+
+u <- c()
+rown <- c()
+for (i in 1:nrow(housetmp)) {
+     if (sum(rownout  == i)>2) {
+         rown <- append(rown, i)
+         u <- append(u, sum(rownout == i))
+     }
+}
+u
+rown
+house <- house[-rown,]
+
+# write.table(o, file = "outliertable.csv",row.names = FALSE)
+```
+
 
 ```{r}
 set.seed(66)
@@ -66,17 +163,24 @@ test <- anti_join(training, train, by = 'id')
 train <- dplyr::select(train, -id)
 test <- dplyr::select(test, -id)
 
-x_train <- model.matrix(SalePrice~.-1, train)[,-81]
-y_train <- train[81]$SalePrice
-x_test <- model.matrix(SalePrice~.-1, test)[,-81]
-y_test <- test[81]$SalePrice
+x_train <- model.matrix(SalePrice~.,train)#[,-length(train)]
+y_train <- train[length(train)]$SalePrice
+x_test <- model.matrix(SalePrice~., test)#[,-length(train)]
+y_test <- test[length(train)]$SalePrice
 ```
+
+
+Working on making Lasso, Ridge, and RF
+
+
+
 
 ## Using GLMNet to find Lasso CV model
 ```{r}
 cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 20)
 plot(cv, xlim=c(5,11))
 minlam = cv$lambda.min
+print("Lasso CV")
 print("Lambda: ")
 minlam
 cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
@@ -108,12 +212,24 @@ AICc <- -tLL+2*k+2*k*(k+1)/(n-k-1)
 print("AIC: ")
 AICc
 ```
+```{r}
+cvimp <- varImp(cvlas, scale = FALSE, lambda = minlam)
+cvimp
+plot(cvimp, top = 20)
+
+#model_subset <- regsubsets(SalePrice ~ ., nbest = 3, data = train, really.big = TRUE, nvmax = 50)
+#plot(model_subset)
+```
 
 ## Using GLMNet to find Ridge Regression Model
 ```{r}
+
+# use variable selection to get subset of variables to find another model
+
 rid <- cv.glmnet(x_train,y_train, alpha = 0, lambda = exp(seq(from = 5,to = 15,length = 100)))
 plot(rid, xlim=c(5,15))
 minlam = rid$lambda.min
+print("Ridge Regression")
 print("Lambda: ")
 minlam
 ridge <- glmnet(x_train,y_train,family = "gaussian", alpha=0, lambda = minlam)
@@ -151,20 +267,124 @@ AICc
 rf <- randomForest(SalePrice ~ ., 
                            data = train,
                            mtry = 9,
-                           ntree = 100,
+                           ntree = 200,
                            importance = TRUE)
+i <- importance(rf, scale=TRUE)
+out <- names(which(i[,1] > 10))
+out
 rfpred  <-  predict(rf, newdata = test)
-print("MSE = ")
-mean((y_test - rfpred)^2)
-plot(rf)
+cat("MSE = ",mean((y_test - rfpred)^2))
+plot(rf,
+     main = "Random Forest without Variable Selection Levels Off near 200")
 ```
+
+# EXPERIMENTING WITH TAKING OUT OUTLIERS AND VARIABLE SELECTION
+
+
+
+```{r test}
+a <- c()
+for (i in out) {
+     a <- append(a, grep(i, names(house)))
+ }
+house <- house[,-a]
+
+set.seed(66)
+training <- mutate(house, id = row_number())
+train <- sample_frac(training, .75)
+test <- anti_join(training, train, by = 'id')
+train <- dplyr::select(train, -id)
+test <- dplyr::select(test, -id)
+
+x_train <- model.matrix(SalePrice~.-1, train)[,-length(train)]
+y_train <- train[length(train)]$SalePrice
+x_test <- model.matrix(SalePrice~.-1, test)[,-length(test)]
+y_test <- test[length(test)]$SalePrice
+
+rfvs <- randomForest(SalePrice ~ ., 
+                           data = train,
+                           mtry = 9,
+                           ntree = 300,
+                           importance = TRUE)
+importance(rfvs, scale=TRUE)
+rfpredvs  <-  predict(rfvs, newdata = test)
+cat("MSE = ",mean((y_test - rfpredvs)^2))
+plot(rfvs,
+     main = "Random Forest with Variable Selection Levels Off near 300")
+```
+
 
 ```{r}
-mean((y_test - cvpred)^2)
-mean((y_test - ridpred)^2)
-mean((y_test - rfpred)^2)
+sqrt(mean((y_test - ridpred)^2))
+sqrt(mean((y_test - cvpred)^2))
+sqrt(mean((y_test - rfpred)^2))
+sqrt(mean((y_test - rfpredvs)^2))
 ```
 
 
+
+
+# Testing
+
+
+
+```{r}
+testing <- read.csv("test.csv")
+
+NAtoNone <- c(2,3,7,9,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+for (i in NAtoNone) {
+  tst <- testing
+  tst[i][is.na(tst[i])] <- "None"
+  testing <- tst
+}
+
+
+testing$Utilities <- factor(testing$Utilities, levels = c("NoSeWa", "None", "AllPub")) 
+testing$MSZoning <- factor(testing$MSZoning, levels = c("C (all)","FV","RH","RL","RM","None"))
+
+
+testing <- testing %>% mutate_if(is.character, as.factor)
+testing <- testing %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor) 
+
+YrMoSold <- do.call(paste, c(sep='',list(testing$YrSold),list(rep("-", times = length(testin
+YrMoSold <- as_date(YrMoSold)
+testing <- as.data.frame(append(testing, list(YrMoSold = YrMoSold), after = 78))
+
+# Take out GarageYrBlt
+testing <- testing[-60]
+
+# Imputation
+numtst <- select_if(testing, is.numeric)
+imputed_house <- mice(numtst,
+                      m = 10,
+       
+                      seed = 1)
+
+set.seed(1)
+imptst <- complete(imputed_house)
+
+tsttmp <- testing
+s = 1
+for (i in names(imptst)[2:length(names(imptst))]) {
+  tsttmp[i] <- imptst[i]
+}
+testing <- tsttmp
+###
+testing$Id <- NULL
+```
+
+
+```{r}
+for (i in 1:length(train)) {
+  print(summary(house[i]))
+  print(summary(testing[i]))
+  cat("\n\n")
+}
+```
+
+
+```{r}
+rftstpred  <-  predict(rf, newdata = testing)
+```
 
 
