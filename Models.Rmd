@@ -1,6 +1,6 @@
 ---
 title: "Models"
-author: "Gideon Wolf, Jeremiah Sagers"
+author: "Gideon Wolf"
 date: "4/15/2024"
 output: html_document
 ---
@@ -20,12 +20,15 @@ library(leaps)
 library(moments)
 
 # Read in data, handle NAs
-house <- read.csv("train.csv")
+housetrain <- read.csv("train.csv")
+housetest <- read.csv("test.csv")
+housetest$SalePrice <- NA
 
+house <- rbind(housetrain, housetest)
 #ggplot(house) + 
 #  geom_bar(aes(x=is.na(house)))
 
-NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+NAtoNone <- c(2,3,7,9,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
 for (i in NAtoNone) {
   housetmp <- house
   housetmp[i][is.na(housetmp[i])] <- "None"
@@ -33,9 +36,13 @@ for (i in NAtoNone) {
 }
 house <- house[-1380,]
 
+# house$Utilities <- factor(house$Utilities, levels = c("NoSeWa", "None", "AllPub"))
+# house$MSZoning <- factor(house$MSZoning, levels = c("C (all)","FV","RH","RL","RM","None"))
+
 house <- house %>% mutate_if(is.character, as.factor)
 house <- house %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor) 
 
+# Imputation
 YrMoSold <- do.call(paste, c(sep='',list(house$YrSold),list(rep("-", times = length(house$YrSold))),list(house$MoSold),list(rep("-01", times = length(house$YrSold)))))
 YrMoSold <- as_date(YrMoSold)
 house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
@@ -43,10 +50,10 @@ house <- as.data.frame(append(house, list(YrMoSold = YrMoSold), after = 78))
 # Take out GarageYrBlt
 house <- house[-60]
 
-# Imputation
 numhouse <- select_if(house, is.numeric)
+numhouse <- numhouse[,-length(numhouse)]
 imputed_house <- mice(numhouse,
-                      m = 10,
+                      m = 5,
                       method = 'pmm',
                       seed = 1)
 
@@ -62,6 +69,8 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 house <- housetmp
 ###
 house$Id <- NULL
+testing <- house[1461:2918,]
+house <- house[1:1460,]
 ```
 
 
@@ -140,7 +149,7 @@ for (i in 1:nrow(housetmp)) {
 }
 u
 rown
-house <- house[-rown]
+house <- house[-rown,]
 
 # write.table(o, file = "outliertable.csv",row.names = FALSE)
 ```
@@ -154,9 +163,9 @@ test <- anti_join(training, train, by = 'id')
 train <- dplyr::select(train, -id)
 test <- dplyr::select(test, -id)
 
-x_train <- model.matrix(SalePrice~.-1, train)[,-length(train)]
+x_train <- model.matrix(SalePrice~.,train)#[,-length(train)]
 y_train <- train[length(train)]$SalePrice
-x_test <- model.matrix(SalePrice~.-1, test)[,-length(train)]
+x_test <- model.matrix(SalePrice~., test)#[,-length(train)]
 y_test <- test[length(train)]$SalePrice
 ```
 
@@ -261,11 +270,12 @@ rf <- randomForest(SalePrice ~ .,
                            ntree = 200,
                            importance = TRUE)
 i <- importance(rf, scale=TRUE)
-out <- names(which(i[,1] > 5))
+out <- names(which(i[,1] > 10))
 out
 rfpred  <-  predict(rf, newdata = test)
 cat("MSE = ",mean((y_test - rfpred)^2))
-plot(rf)
+plot(rf,
+     main = "Random Forest without Variable Selection Levels Off near 200")
 ```
 
 # EXPERIMENTING WITH TAKING OUT OUTLIERS AND VARIABLE SELECTION
@@ -299,17 +309,82 @@ rfvs <- randomForest(SalePrice ~ .,
 importance(rfvs, scale=TRUE)
 rfpredvs  <-  predict(rfvs, newdata = test)
 cat("MSE = ",mean((y_test - rfpredvs)^2))
-plot(rfvs)
+plot(rfvs,
+     main = "Random Forest with Variable Selection Levels Off near 300")
 ```
 
 
 ```{r}
-mean((y_test - ridpred)^2)
-mean((y_test - cvpred)^2)
-mean((y_test - rfpred)^2)
-mean((y_test - rfpredvs)^2)
+sqrt(mean((y_test - ridpred)^2))
+sqrt(mean((y_test - cvpred)^2))
+sqrt(mean((y_test - rfpred)^2))
+sqrt(mean((y_test - rfpredvs)^2))
 ```
 
 
+
+
+# Testing
+
+
+
+```{r}
+testing <- read.csv("test.csv")
+
+NAtoNone <- c(2,3,7,9,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+for (i in NAtoNone) {
+  tst <- testing
+  tst[i][is.na(tst[i])] <- "None"
+  testing <- tst
+}
+
+
+testing$Utilities <- factor(testing$Utilities, levels = c("NoSeWa", "None", "AllPub")) 
+testing$MSZoning <- factor(testing$MSZoning, levels = c("C (all)","FV","RH","RL","RM","None"))
+
+
+testing <- testing %>% mutate_if(is.character, as.factor)
+testing <- testing %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor) 
+
+YrMoSold <- do.call(paste, c(sep='',list(testing$YrSold),list(rep("-", times = length(testin
+YrMoSold <- as_date(YrMoSold)
+testing <- as.data.frame(append(testing, list(YrMoSold = YrMoSold), after = 78))
+
+# Take out GarageYrBlt
+testing <- testing[-60]
+
+# Imputation
+numtst <- select_if(testing, is.numeric)
+imputed_house <- mice(numtst,
+                      m = 10,
+       
+                      seed = 1)
+
+set.seed(1)
+imptst <- complete(imputed_house)
+
+tsttmp <- testing
+s = 1
+for (i in names(imptst)[2:length(names(imptst))]) {
+  tsttmp[i] <- imptst[i]
+}
+testing <- tsttmp
+###
+testing$Id <- NULL
+```
+
+
+```{r}
+for (i in 1:length(train)) {
+  print(summary(house[i]))
+  print(summary(testing[i]))
+  cat("\n\n")
+}
+```
+
+
+```{r}
+rftstpred  <-  predict(rf, newdata = testing)
+```
 
 
