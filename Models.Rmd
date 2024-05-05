@@ -69,8 +69,8 @@ for (i in names(imphouse)[2:length(names(imphouse))]) {
 house <- housetmp
 ###
 house$Id <- NULL
-testing <- house[1461:2918,]
-house <- house[1:1460,]
+testing <- house[1460:2918,]
+house <- house[1:1459,]
 ```
 
 
@@ -179,13 +179,13 @@ Working on making Lasso, Ridge, and RF
 ```{r}
 cv <- cv.glmnet(x_train,y_train, alpha=1,nfolds = 20)
 plot(cv, xlim=c(5,11))
-minlam = cv$lambda.min
+minlam1 = cv$lambda.min
 print("Lasso CV")
 print("Lambda: ")
-minlam
-cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam)
+minlam1
+cvlas <- glmnet(x_train,y_train,family = "gaussian", alpha=1, lambda = minlam1)
 
-cvpred <- predict(cvlas, s =minlam, newx = x_test)
+cvpred <- predict(cvlas, s =minlam1, newx = x_test)
 print("MSE: ")
 mean((cvpred - y_test)^2)
 
@@ -213,7 +213,7 @@ print("AIC: ")
 AICc
 ```
 ```{r}
-cvimp <- varImp(cvlas, scale = FALSE, lambda = minlam)
+cvimp <- varImp(cvlas, scale = FALSE, lambda = minlam1)
 cvimp
 plot(cvimp, top = 20)
 
@@ -228,13 +228,13 @@ plot(cvimp, top = 20)
 
 rid <- cv.glmnet(x_train,y_train, alpha = 0, lambda = exp(seq(from = 5,to = 15,length = 100)))
 plot(rid, xlim=c(5,15))
-minlam = rid$lambda.min
+minlam2 = rid$lambda.min
 print("Ridge Regression")
 print("Lambda: ")
-minlam
-ridge <- glmnet(x_train,y_train,family = "gaussian", alpha=0, lambda = minlam)
+minlam2
+ridge <- glmnet(x_train,y_train,family = "gaussian", alpha=0, lambda = minlam2)
 
-ridpred <- predict(ridge, s =minlam, newx = x_test)
+ridpred <- predict(ridge, s =minlam2, newx = x_test)
 print("MSE: ")
 mean((ridpred - y_test)^2)
 
@@ -327,64 +327,16 @@ sqrt(mean((y_test - rfpredvs)^2))
 # Testing
 
 
-
 ```{r}
-testing <- read.csv("test.csv")
-
-NAtoNone <- c(2,3,7,9,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
-for (i in NAtoNone) {
-  tst <- testing
-  tst[i][is.na(tst[i])] <- "None"
-  testing <- tst
-}
-
-
-testing$Utilities <- factor(testing$Utilities, levels = c("NoSeWa", "None", "AllPub")) 
-testing$MSZoning <- factor(testing$MSZoning, levels = c("C (all)","FV","RH","RL","RM","None"))
-
-
-testing <- testing %>% mutate_if(is.character, as.factor)
-testing <- testing %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor) 
-
-YrMoSold <- do.call(paste, c(sep='',list(testing$YrSold),list(rep("-", times = length(testin
-YrMoSold <- as_date(YrMoSold)
-testing <- as.data.frame(append(testing, list(YrMoSold = YrMoSold), after = 78))
-
-# Take out GarageYrBlt
-testing <- testing[-60]
-
-# Imputation
-numtst <- select_if(testing, is.numeric)
-imputed_house <- mice(numtst,
-                      m = 10,
-       
-                      seed = 1)
-
-set.seed(1)
-imptst <- complete(imputed_house)
-
-tsttmp <- testing
-s = 1
-for (i in names(imptst)[2:length(names(imptst))]) {
-  tsttmp[i] <- imptst[i]
-}
-testing <- tsttmp
-###
-testing$Id <- NULL
+SalePrice  <-  predict(rf, newdata = testing)
+Id <- 1461:2919
+results <- data.frame(Id,SalePrice)
+write.csv(results, "y_predicitons_rf.csv", row.names = FALSE)
 ```
 
-
 ```{r}
-for (i in 1:length(train)) {
-  print(summary(house[i]))
-  print(summary(testing[i]))
-  cat("\n\n")
-}
+x_pred <- model.matrix(SalePrice~., testing)
+SalePrice  <-  predict(cvlas,s=minlam1, newx = x_pred,)
+results <- data.frame(Id,SalePrice)
+write.csv(results, "y_predicitons_lasso.csv", row.names = FALSE)
 ```
-
-
-```{r}
-rftstpred  <-  predict(rf, newdata = testing)
-```
-
-

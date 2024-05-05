@@ -316,12 +316,18 @@ summary(house$MSZoning)
   
 ```{r}
 ggplot( house, aes(x = BsmtFullBath, y =BsmtFinSF1 )) +
-  geom_point()
+  geom_point() + 
+  labs(title = "Outlier makes an otherwise regular relationship \nfan-like, taking it out should solve this issue.") +
+  xlab("Number of Full Bathrooms in the Basement") + 
+  ylab("Square Feet of Basement Finish")
 ```
 
 ```{r}
 ggplot( house, aes(x = log(BsmtFinSF1),y =  GrLivArea)) +
-  geom_point()
+  geom_point() + 
+  labs(title = "Log transformation of basement square footage \nfixes most multicolinear relationship.") +
+  xlab("Log of Square Feet of Basement Finish") + 
+  ylab("Above Ground Square Feet")
 ```
   
 
@@ -335,16 +341,14 @@ ggplot( house, aes(x = log(BsmtFinSF1),y =  GrLivArea)) +
   -How much impact does house size have on sales price?
   
 ```{r}
-p1 <- ggplot(house, aes(x=log(scale(TotalBsmtSF)),y=SalePrice)) +
-  geom_point()
+p1 <- ggplot(house, aes(x=log(scale(TotalBsmtSF)),y=SalePrice)) + geom_point() + xlab("Log Scale of Basement\n Square Feet") + ylab("Sale Price")
 p2 <- ggplot(house, aes(x=log(LotFrontage),y=SalePrice)) +
-  geom_point()
-p3 <- ggplot(house, aes(x=log(scale(`X1stFlrSF`)),y=SalePrice)) +
-  geom_point()
+  geom_point() + ylab("Sale Price") + xlab("Log of Lot Frontage")
+p3 <- ggplot(house, aes(x=log(scale(`X1stFlrSF`)),y=SalePrice)) + geom_point() + ylab("Sale Price") + xlab("Log Scale of 1st Floor\n Square Feet")
 p4 <- ggplot(house, aes(x=`X2ndFlrSF`,y=SalePrice)) +
-  geom_point()
+  geom_point() + ylab("Sale Price") + xlab("2nd Floor Square feet")
 
-grid.arrange(p1, p2, p3, p4, ncol=2)
+grid.arrange(p1, p2, p3, p4, ncol=2, top ="Transformations took care of multicollinearity\n of flagged variables.") 
 
 ggplot(house, aes(x = (TotalBsmtSF + `1stFlrSF` + `2ndFlrSF`), y = SalePrice)) + 
   geom_point()
