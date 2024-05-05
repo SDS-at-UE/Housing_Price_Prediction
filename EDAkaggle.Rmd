@@ -232,16 +232,6 @@ Now we only have one column with NA's left: GarageYrBlt.
 ### Outliers
 
 ```{r}
-for (i in 1: length(names(house))) {
-    if (is.numeric(house[,i])) {
-        h <- hist(house[,i],
-                  xlab = names(house)[i])
-        h
-    }
-}
-```
-
-```{r}
 housetmp <- select_if(house, is.numeric)
 for (i in 1:length(housetmp)) {
   print(names(housetmp[i]))

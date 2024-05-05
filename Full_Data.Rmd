@@ -1,0 +1,83 @@
+---
+title: "Full Data"
+author: "Jeremiah Sagers"
+date: "2024-04-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(mice)
+```
+
+```{r}
+# Read in Data
+house <- read.csv("train.csv")
+response <- house$SalePrice # stored for later
+testdata <- read.csv("test.csv")
+full <- rbind(house[-81], testdata) # combine train and test
+
+NAtoNone <- c(2,3,7,10,24,25,26,31,32,33,34,36,54,56,58,59,61,64,65,73,74,75,79)
+for (i in NAtoNone) {
+  fulltmp <- full
+  fulltmp[i][is.na(fulltmp[i])] <- "None"
+  full <- fulltmp
+}
+
+full <- full[-1380,]
+response <- response[-1380]
+
+full <- full %>% mutate_if(is.character, as.factor)
+full <- full %>% mutate_at(c('MSSubClass','MoSold', 'OverallQual', 'OverallCond'), as_factor)
+
+
+# I don't add YrMoSold because we don't need it for the models, plus my model performed better without it anyway (on validation, at least).  If you do add YrMoSold, the imputation and separation still works.
+#YrMoSold <- do.call(paste, c(sep='',list(full$YrSold),list(rep("-", times = length(full$YrSold))),
+#                             list(full$MoSold),list(rep("-01", times = length(full$YrSold)))))
+#YrMoSold <- as_date(YrMoSold)
+#full <- as.data.frame(append(full, list(YrMoSold = YrMoSold), after = 78))
+
+full <- full[-c(1,60)] # remove GarageYrBlt
+
+# Separate the data back into train and test and add back the response variable
+house <- full[1:1459,]
+testdata <- full[1460:2918,]
+house$SalePrice <- response
+
+# Imputation must be done after separation due to the randomness of the values imputed.  If done to "full", there will be differences between the resulting train dataset and the one given by ReadData.R.
+numhouse <- select_if(house, is.numeric)
+imputed_house <- mice(numhouse,
+                      m = 10,
+                      method = 'pmm',
+                      seed = 1)
+
+set.seed(1)
+imphouse <- complete(imputed_house)
+housetmp <- house
+s = 1
+for (i in names(imphouse)[1:length(names(imphouse))]) { # use 1:length because "Id" has already been removed
+  housetmp[i] <- imphouse[i]
+}
+house <- housetmp
+
+numtest <- select_if(testdata, is.numeric)
+imputed_test <- mice(numtest,
+                      m = 10,
+                      method = 'pmm',
+                      seed = 1)
+
+set.seed(1)
+imptest <- complete(imputed_test)
+testtmp <- testdata
+s = 1
+for (i in names(imptest)[1:length(names(imptest))]) {
+  testtmp[i] <- imptest[i]
+}
+testdata <- testtmp
+
+md.pattern(house)
+md.pattern(testdata)
+```
+
